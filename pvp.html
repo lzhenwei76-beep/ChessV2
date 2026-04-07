@@ -279,6 +279,42 @@
     .overlay-title.win { color: var(--ok); text-shadow: 0 0 22px rgba(52,211,153,0.42); }
     .overlay-title.loss { color: #f87171; text-shadow: 0 0 22px rgba(248,113,113,0.35); }
     .overlay-title.draw { color: #facc15; text-shadow: 0 0 22px rgba(250,204,21,0.35); }
+    .promo-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      display: none;
+      place-items: center;
+      z-index: 30;
+    }
+    .promo-backdrop.show { display: grid; }
+    .promo-card {
+      width: min(92vw, 420px);
+      background: #ffffff;
+      border: 1px solid rgba(15,23,42,0.16);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 16px 35px rgba(15,23,42,0.18);
+    }
+    .promo-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 10px;
+    }
+    .promo-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .promo-btn {
+      border: 1px solid rgba(15,23,42,0.15);
+      border-radius: 12px;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 12px 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
     @keyframes pop {
       to { transform: scale(1); }
@@ -347,6 +383,17 @@
       <div id="overlaySubtitle" class="muted"></div>
       <div class="row" style="justify-content:center; margin-top:14px;">
         <button id="overlayCloseBtn" class="ghost">Weiter</button>
+      </div>
+    </div>
+  </div>
+  <div id="promoOverlay" class="promo-backdrop">
+    <div class="promo-card">
+      <p class="promo-title">Bauer umwandeln in:</p>
+      <div class="promo-grid">
+        <button class="promo-btn" data-piece="q">Dame</button>
+        <button class="promo-btn" data-piece="r">Turm</button>
+        <button class="promo-btn" data-piece="b">Läufer</button>
+        <button class="promo-btn" data-piece="n">Pferd</button>
       </div>
     </div>
   </div>
@@ -431,6 +478,8 @@
       overlayTitle: document.getElementById("overlayTitle"),
       overlaySubtitle: document.getElementById("overlaySubtitle"),
       overlayCloseBtn: document.getElementById("overlayCloseBtn"),
+      promoOverlay: document.getElementById("promoOverlay"),
+      promoButtons: Array.from(document.querySelectorAll(".promo-btn")),
       rulesBox: document.getElementById("rulesBox")
     };
 
@@ -448,8 +497,11 @@
       listeners: [],
       heartbeatTimer: null,
       cleanupTimer: null,
+      matchMissingTimer: null,
       lastLoggedMoveCount: -1,
       shownResultForMatch: null,
+      pendingPromotion: null,
+      connected: true,
       authReady: false,
       chessReady: false,
       authMode: "firebase"
@@ -723,32 +775,23 @@
       ui.overlay.classList.remove("show");
     }
 
-    async function onSquareClick(squareId) {
-      if (!state.chessReady || !state.game) {
-        setStatus("Matchmaking aktiv, aber Schach-Engine fehlt noch.", "error");
-        return;
-      }
-      if (!state.matchId) return;
-      if (state.game.turn() !== state.color) return;
+    function showPromotionOverlay() {
+      ui.promoOverlay.classList.add("show");
+    }
 
-      if (!state.selected) {
-        const piece = state.game.get(squareId);
-        if (!piece || piece.color !== state.color) return;
-        state.selected = squareId;
-        state.legalMoves = state.game.moves({ square: squareId, verbose: true }).map((m) => m.to);
-        renderBoard();
-        return;
-      }
+    function hidePromotionOverlay() {
+      ui.promoOverlay.classList.remove("show");
+    }
 
-      if (squareId === state.selected) {
-        state.selected = null;
-        state.legalMoves = [];
-        renderBoard();
-        return;
-      }
+    function isPromotionMove(from, to) {
+      if (!state.game) return false;
+      const moves = state.game.moves({ square: from, verbose: true });
+      return moves.some((m) => m.to === to && ((m.flags && m.flags.includes("p")) || !!m.promotion));
+    }
 
-      const move = state.game.move({ from: state.selected, to: squareId, promotion: "q" });
-      if (!move) return;
+    async function submitMove(from, to, promotion = "q") {
+      const move = state.game.move({ from, to, promotion });
+      if (!move) return false;
 
       const newFen = state.game.fen();
       const nextTurn = state.game.turn();
@@ -757,6 +800,7 @@
 
       state.selected = null;
       state.legalMoves = [];
+      state.pendingPromotion = null;
       renderBoard();
 
       const matchRef = db.ref(`matches/${state.matchId}`);
@@ -790,6 +834,41 @@
           log(`Du spielst: ${moveSan}`);
         }
       });
+      return true;
+    }
+
+    async function onSquareClick(squareId) {
+      if (!state.chessReady || !state.game) {
+        setStatus("Matchmaking aktiv, aber Schach-Engine fehlt noch.", "error");
+        return;
+      }
+      if (!state.matchId) return;
+      if (state.game.turn() !== state.color) return;
+
+      if (!state.selected) {
+        const piece = state.game.get(squareId);
+        if (!piece || piece.color !== state.color) return;
+        state.selected = squareId;
+        state.legalMoves = state.game.moves({ square: squareId, verbose: true }).map((m) => m.to);
+        renderBoard();
+        return;
+      }
+
+      if (squareId === state.selected) {
+        state.selected = null;
+        state.legalMoves = [];
+        renderBoard();
+        return;
+      }
+
+      const from = state.selected;
+      if (isPromotionMove(from, squareId)) {
+        state.pendingPromotion = { from, to: squareId };
+        showPromotionOverlay();
+        return;
+      }
+
+      await submitMove(from, squareId, "q");
     }
 
     function updateMatchUI(match) {
@@ -899,9 +978,22 @@
       const matchListener = matchRef.on("value", (snap) => {
         const match = snap.val();
         if (!match) {
-          setStatus("Match wurde aufgeraeumt.", "info");
-          leaveEverything({ clearInput: false });
+          if (!state.matchMissingTimer) {
+            setStatus("Verbindung unsicher... pruefe Match erneut.", "info");
+            state.matchMissingTimer = setTimeout(async () => {
+              state.matchMissingTimer = null;
+              const latest = await db.ref(`matches/${matchId}`).get();
+              if (!latest.exists() && state.matchId === matchId) {
+                setStatus("Match wurde aufgeraeumt.", "info");
+                leaveEverything({ clearInput: false });
+              }
+            }, 5000);
+          }
           return;
+        }
+        if (state.matchMissingTimer) {
+          clearTimeout(state.matchMissingTimer);
+          state.matchMissingTimer = null;
         }
         const me = match.players?.[state.uid];
         if (!me) return;
@@ -1060,7 +1152,7 @@
       await queueRef.set({ name, joinedAt: Date.now(), lastSeen: Date.now() });
       await presenceRef.set({ online: true, lastSeen: Date.now() });
 
-      userRef.onDisconnect().remove();
+      userRef.onDisconnect().update({ status: "offline", lastSeen: firebase.database.ServerValue.TIMESTAMP });
       queueRef.onDisconnect().remove();
       presenceRef.onDisconnect().set({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
 
@@ -1095,6 +1187,10 @@
       cleanupListeners();
       stopCleanupLoop();
       stopHeartbeat();
+      if (state.matchMissingTimer) {
+        clearTimeout(state.matchMissingTimer);
+        state.matchMissingTimer = null;
+      }
 
       await db.ref(`queue/${state.uid}`).remove();
       await db.ref(`users/${state.uid}`).remove();
@@ -1107,6 +1203,7 @@
       state.selected = null;
       state.legalMoves = [];
       state.shownResultForMatch = null;
+      state.pendingPromotion = null;
       state.name = null;
 
       if (options.clearInput) {
@@ -1123,6 +1220,7 @@
       ui.resetBtn.disabled = true;
       ui.sendChatBtn.disabled = true;
       hideOverlay();
+      hidePromotionOverlay();
       setStatus("Bereit.", "info");
       setButtonsForReady();
       resetLocalGame();
@@ -1195,6 +1293,25 @@
       ui.rulesBox.textContent = RULES_TEXT;
       resetLocalGame();
 
+      const connectedRef = db.ref(".info/connected");
+      connectedRef.on("value", async (snap) => {
+        state.connected = !!snap.val();
+        if (!state.connected) {
+          setStatus("Verbindung unterbrochen... versuche neu zu verbinden.", "error");
+          return;
+        }
+        if (!state.uid) return;
+        await db.ref(`presence/${state.uid}`).update({ online: true, lastSeen: Date.now() });
+        if (state.matchId) {
+          await db.ref(`users/${state.uid}`).update({ status: "in_match", matchId: state.matchId, lastSeen: Date.now() });
+          setStatus("Wieder verbunden. Match laeuft weiter.", "ok");
+        } else if (state.name) {
+          await db.ref(`users/${state.uid}`).update({ name: state.name, status: "searching", lastSeen: Date.now() });
+          await db.ref(`queue/${state.uid}`).update({ name: state.name, lastSeen: Date.now() });
+          setStatus("Wieder verbunden. Matchmaking laeuft.", "ok");
+        }
+      });
+
       auth.onAuthStateChanged(async (user) => {
         if (user) {
           state.uid = user.uid;
@@ -1236,6 +1353,15 @@
       if (e.key === "Enter") sendChat();
     });
     ui.overlayCloseBtn.addEventListener("click", hideOverlay);
+    ui.promoButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (!state.pendingPromotion) return;
+        const promotion = btn.dataset.piece;
+        if (!promotion) return;
+        hidePromotionOverlay();
+        await submitMove(state.pendingPromotion.from, state.pendingPromotion.to, promotion);
+      });
+    });
 
     window.addEventListener("beforeunload", () => {
       if (!state.uid) return;
