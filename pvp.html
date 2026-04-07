@@ -6,26 +6,26 @@
   <title>Schach PvP - Matchmaking</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --card: #0b1220;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --accent: #f59e0b;
-      --accent-2: #22d3ee;
+      --bg: #eef3f8;
+      --panel: #ffffff;
+      --card: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #f97316;
+      --accent-2: #0ea5e9;
       --danger: #ef4444;
       --ok: #34d399;
-      --board-light: #f1f5f9;
-      --board-dark: #334155;
+      --board-light: #f0d9b5;
+      --board-dark: #b58863;
       --sel: #fde68a;
-      --move: #67e8f9;
+      --move: #0ea5e9;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "Space Grotesk", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: radial-gradient(1200px 600px at 10% -10%, #1f2937 0%, transparent 60%),
-                  radial-gradient(900px 500px at 110% 10%, #0ea5e9 0%, transparent 50%),
+      background: radial-gradient(1200px 600px at 10% -10%, #dbeafe 0%, transparent 60%),
+                  radial-gradient(900px 500px at 110% 10%, #cffafe 0%, transparent 50%),
                   var(--bg);
       color: var(--text);
       min-height: 100vh;
@@ -43,11 +43,11 @@
       .app { grid-template-columns: 1fr; }
     }
     .panel {
-      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+      border: 1px solid rgba(15,23,42,0.08);
       border-radius: 18px;
       padding: 20px;
-      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(15,23,42,0.08);
     }
     h1 {
       margin: 0 0 8px;
@@ -63,7 +63,7 @@
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     input[type="text"] {
       background: var(--card);
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(15,23,42,0.14);
       border-radius: 10px;
       padding: 12px 14px;
       color: var(--text);
@@ -89,7 +89,7 @@
     button.ghost {
       background: transparent;
       color: var(--text);
-      border: 1px solid rgba(255,255,255,0.1);
+      border: 1px solid rgba(15,23,42,0.2);
     }
     button:disabled {
       opacity: 0.6;
@@ -99,8 +99,8 @@
     .status {
       padding: 10px 12px;
       border-radius: 10px;
-      background: rgba(255,255,255,0.04);
-      border: 1px dashed rgba(255,255,255,0.15);
+      background: rgba(14,165,233,0.06);
+      border: 1px dashed rgba(14,165,233,0.35);
       font-size: 14px;
     }
     .board {
@@ -110,7 +110,7 @@
       aspect-ratio: 1;
       border-radius: 14px;
       overflow: hidden;
-      border: 2px solid rgba(255,255,255,0.08);
+      border: 2px solid rgba(15,23,42,0.16);
       max-width: 520px;
       margin: 10px auto 0;
     }
@@ -134,7 +134,7 @@
       min-width: 10px;
       min-height: 10px;
       border-radius: 999px;
-      background: rgba(34, 211, 238, 0.75);
+      background: rgba(14, 165, 233, 0.72);
       box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
       pointer-events: none;
       position: absolute;
@@ -145,7 +145,7 @@
       width: 72%;
       height: 72%;
       border-radius: 999px;
-      border: 4px solid rgba(34, 211, 238, 0.78);
+      border: 4px solid rgba(14, 165, 233, 0.78);
       background: transparent;
       pointer-events: none;
       position: absolute;
@@ -155,14 +155,23 @@
     .piece {
       line-height: 1;
       pointer-events: none;
+      display: grid;
+      place-items: center;
+      width: 88%;
+      height: 88%;
+      font-size: clamp(26px, 4.4vw, 48px);
+      font-weight: 700;
+      font-family: "Noto Serif", "Times New Roman", serif;
     }
     .piece.white {
-      color: #f8fafc;
-      text-shadow: 0 1px 0 rgba(0,0,0,0.8), 0 0 8px rgba(148,163,184,0.45);
+      color: #ffffff;
+      -webkit-text-stroke: 1.3px rgba(15, 23, 42, 0.95);
+      text-shadow: 0 1px 0 rgba(15,23,42,0.85), 0 0 3px rgba(0,0,0,0.22);
     }
     .piece.black {
-      color: #0f172a;
-      text-shadow: 0 1px 0 rgba(255,255,255,0.35), 0 0 8px rgba(2,6,23,0.35);
+      color: #000000;
+      -webkit-text-stroke: 1.1px rgba(248,250,252,0.95);
+      text-shadow: 0 1px 0 rgba(248,250,252,0.75), 0 0 3px rgba(255,255,255,0.2);
     }
     .info-grid {
       display: grid;
@@ -176,14 +185,14 @@
     .pill {
       padding: 8px 10px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(15,23,42,0.04);
+      border: 1px solid rgba(15,23,42,0.1);
       font-size: 13px;
     }
     .log,
     .chat-log {
       background: var(--card);
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid rgba(15,23,42,0.1);
       border-radius: 12px;
       padding: 12px;
       overflow: auto;
@@ -198,8 +207,8 @@
       gap: 7px;
     }
     .chat-item {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(15,23,42,0.04);
+      border: 1px solid rgba(15,23,42,0.08);
       border-radius: 10px;
       padding: 7px 10px;
       line-height: 1.3;
@@ -216,13 +225,13 @@
     }
     .divider {
       height: 1px;
-      background: rgba(255,255,255,0.08);
+      background: rgba(15,23,42,0.1);
       margin: 12px 0;
     }
     details {
       margin-top: 10px;
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(15,23,42,0.03);
+      border: 1px solid rgba(15,23,42,0.1);
       border-radius: 12px;
       padding: 10px;
     }
@@ -240,7 +249,7 @@
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(2, 6, 23, 0.68);
+      background: rgba(15, 23, 42, 0.45);
       display: grid;
       place-items: center;
       z-index: 20;
@@ -256,8 +265,8 @@
       min-width: min(92vw, 520px);
       text-align: center;
       border-radius: 18px;
-      border: 1px solid rgba(255,255,255,0.2);
-      background: linear-gradient(180deg, rgba(17,24,39,0.95), rgba(11,18,32,0.95));
+      border: 1px solid rgba(15,23,42,0.18);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.98));
       padding: 28px 20px;
       transform: scale(0.95);
       animation: pop 320ms ease forwards;
@@ -568,33 +577,29 @@
         return;
       }
       ui.board.innerHTML = "";
-      const fen = state.game.fen().split(" ")[0];
-      const rows = fen.split("/");
-      const ranks = state.color === "b" ? [...rows].reverse() : rows;
-      ranks.forEach((row, rIdx) => {
-        let fileIndex = 0;
-        for (const char of row) {
-          if (Number.isInteger(+char)) {
-            for (let i = 0; i < Number(char); i++) {
-              const square = makeSquare(rIdx, fileIndex, null);
-              ui.board.appendChild(square);
-              fileIndex += 1;
-            }
-          } else {
-            const square = makeSquare(rIdx, fileIndex, char);
-            ui.board.appendChild(square);
-            fileIndex += 1;
-          }
+      const files = state.color === "b"
+        ? ["h", "g", "f", "e", "d", "c", "b", "a"]
+        : ["a", "b", "c", "d", "e", "f", "g", "h"];
+      const ranks = state.color === "b"
+        ? [1, 2, 3, 4, 5, 6, 7, 8]
+        : [8, 7, 6, 5, 4, 3, 2, 1];
+
+      for (const rank of ranks) {
+        for (const file of files) {
+          const squareId = `${file}${rank}`;
+          const pieceObj = state.game.get(squareId);
+          const piece = pieceObj
+            ? (pieceObj.color === "w" ? pieceObj.type.toUpperCase() : pieceObj.type)
+            : null;
+          const fileNumber = file.charCodeAt(0) - 96;
+          const isLight = (fileNumber + rank) % 2 === 1;
+          const square = makeSquare(squareId, isLight, piece);
+          ui.board.appendChild(square);
         }
-      });
+      }
     }
 
-    function makeSquare(rIdx, fileIndex, piece) {
-      const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
-      const rank = state.color === "b" ? rIdx + 1 : 8 - rIdx;
-      const file = state.color === "b" ? files[7 - fileIndex] : files[fileIndex];
-      const squareId = file + rank;
-      const isLight = (fileIndex + rIdx) % 2 === 0;
+    function makeSquare(squareId, isLight, piece) {
       const div = document.createElement("div");
       div.className = `square ${isLight ? "light" : "dark"}`;
       div.dataset.square = squareId;
