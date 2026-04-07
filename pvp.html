@@ -306,7 +306,6 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js"></script>
 
   <script>
     const firebaseConfig = {
@@ -387,12 +386,6 @@
       rulesBox: document.getElementById("rulesBox")
     };
 
-    if (typeof Chess === "undefined") {
-      ui.status.textContent = "Fehler: chess.js konnte nicht geladen werden. Seite neu laden.";
-      ui.status.style.borderColor = "rgba(239,68,68,0.6)";
-      throw new Error("Chess library missing");
-    }
-
     const state = {
       uid: null,
       name: null,
@@ -402,15 +395,19 @@
       opponentUid: null,
       selected: null,
       legalMoves: [],
-      game: new Chess(),
+      game: null,
       localFen: null,
       listeners: [],
       heartbeatTimer: null,
       cleanupTimer: null,
       lastLoggedMoveCount: -1,
       shownResultForMatch: null,
-      authReady: false
+      authReady: false,
+      chessReady: false,
+      authMode: "firebase"
     };
+
+    const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
     const pieceMap = {
       p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
@@ -434,6 +431,60 @@
       }
     }
 
+    function makeLocalUid() {
+      return "guest_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+
+    function enableGuestMode(reason) {
+      if (!state.uid) state.uid = makeLocalUid();
+      state.authReady = true;
+      state.authMode = "guest";
+      setButtonsForReady();
+      setStatus(`Gastmodus aktiv (${reason}). Firebase Auth ist nicht eingerichtet.`, "error");
+      log("Gastmodus aktiv: Realtime DB funktioniert nur, wenn Rules auch ohne auth schreiben erlauben.");
+    }
+
+    function renderPlaceholderBoard() {
+      ui.board.innerHTML = "";
+      for (let rIdx = 0; rIdx < 8; rIdx += 1) {
+        for (let fileIndex = 0; fileIndex < 8; fileIndex += 1) {
+          const isLight = (fileIndex + rIdx) % 2 === 0;
+          const div = document.createElement("div");
+          div.className = `square ${isLight ? "light" : "dark"}`;
+          ui.board.appendChild(div);
+        }
+      }
+    }
+
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = src;
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Load failed: " + src));
+        document.head.appendChild(s);
+      });
+    }
+
+    async function ensureChessLoaded() {
+      if (typeof Chess !== "undefined") return true;
+      const sources = [
+        "https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js",
+        "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.min.js",
+        "https://unpkg.com/chess.js@1.0.0/dist/chess.min.js"
+      ];
+      for (const src of sources) {
+        try {
+          await loadScript(src);
+          if (typeof Chess !== "undefined") return true;
+        } catch (_) {
+          // Try next CDN.
+        }
+      }
+      return false;
+    }
+
     function setButtonsForReady() {
       const ready = state.authReady;
       ui.joinBtn.disabled = !ready || !!state.matchId || !!state.name;
@@ -442,6 +493,16 @@
     }
 
     function resetLocalGame() {
+      if (!state.chessReady || typeof Chess === "undefined") {
+        state.game = null;
+        state.localFen = START_FEN;
+        state.selected = null;
+        state.legalMoves = [];
+        ui.gameState.textContent = "Warte auf Schach-Engine";
+        ui.turnInfo.textContent = "-";
+        renderPlaceholderBoard();
+        return;
+      }
       state.game = new Chess();
       state.localFen = state.game.fen();
       state.selected = null;
@@ -453,6 +514,10 @@
     }
 
     function renderBoard() {
+      if (!state.game) {
+        renderPlaceholderBoard();
+        return;
+      }
       ui.board.innerHTML = "";
       const fen = state.game.fen().split(" ")[0];
       const rows = fen.split("/");
@@ -594,6 +659,10 @@
     }
 
     async function onSquareClick(squareId) {
+      if (!state.chessReady || !state.game) {
+        setStatus("Matchmaking aktiv, aber Schach-Engine fehlt noch.", "error");
+        return;
+      }
       if (!state.matchId) return;
       if (state.game.turn() !== state.color) return;
 
@@ -661,14 +730,24 @@
     function updateMatchUI(match) {
       if (!match) return;
 
-      state.localFen = match.state?.fen || state.game.fen();
-      state.game.load(state.localFen);
-      renderBoard();
-
       const turn = match.state?.turn;
       if (turn === "w") ui.turnInfo.textContent = "Weiss";
       else if (turn === "b") ui.turnInfo.textContent = "Schwarz";
       else ui.turnInfo.textContent = "-";
+
+      if (!state.chessReady || !state.game) {
+        state.localFen = match.state?.fen || START_FEN;
+        renderPlaceholderBoard();
+        updateGameStateLabel(match);
+        if (match.status === "active") {
+          setStatus("Verbunden. Spielstatus live, aber Schach-Engine fehlt.", "error");
+        }
+        return;
+      }
+
+      state.localFen = match.state?.fen || state.game.fen();
+      state.game.load(state.localFen);
+      renderBoard();
 
       const moveCount = match.state?.moveCount || 0;
       const moveSan = match.state?.lastMoveSan;
@@ -857,7 +936,7 @@
 
           const matchId = db.ref("matches").push().key;
           const matchRef = db.ref(`matches/${matchId}`);
-          const initialFen = new Chess().fen();
+          const initialFen = START_FEN;
 
           await matchRef.set({
             createdAt: firebase.database.ServerValue.TIMESTAMP,
@@ -1005,6 +1084,10 @@
 
     async function resetGame() {
       if (!state.matchId) return;
+      if (!state.chessReady) {
+        setStatus("Schach-Engine fehlt. Reset nur mit geladener Engine moeglich.", "error");
+        return;
+      }
       const matchRef = db.ref(`matches/${state.matchId}`);
       await matchRef.transaction((match) => {
         if (!match || !match.players) return match;
@@ -1047,17 +1130,17 @@
       ui.rulesBox.textContent = RULES_TEXT;
       resetLocalGame();
 
-      if (window.location.protocol === "file:") {
-        setStatus("Bitte ueber http://localhost starten, nicht ueber file://", "error");
-        return;
-      }
-
       auth.onAuthStateChanged(async (user) => {
         if (user) {
           state.uid = user.uid;
           state.authReady = true;
+          state.authMode = "firebase";
           setButtonsForReady();
-          setStatus("Verbunden. Name eingeben und Matchmaking starten.", "ok");
+          if (state.chessReady) {
+            setStatus("Verbunden. Name eingeben und Matchmaking starten.", "ok");
+          } else {
+            setStatus("Firebase verbunden. Schach-Engine wird noch geladen.", "info");
+          }
           return;
         }
 
@@ -1065,6 +1148,10 @@
           await auth.signInAnonymously();
         } catch (error) {
           const code = error && error.code ? ` (${error.code})` : "";
+          if (error && error.code === "auth/configuration-not-found") {
+            enableGuestMode("auth/configuration-not-found");
+            return;
+          }
           setStatus("Firebase Auth Fehler" + code + ": " + error.message, "error");
         }
       });
@@ -1085,7 +1172,31 @@
       db.ref(`presence/${state.uid}`).set({ online: false, lastSeen: Date.now() });
     });
 
-    initAuth();
+    async function bootstrap() {
+      if (window.location.protocol === "file:") {
+        setStatus("Bitte ueber http://localhost starten, nicht ueber file://", "error");
+        return;
+      }
+
+      initAuth();
+      setStatus("Verbinde Firebase... Lade Schach-Engine...", "info");
+      const chessReady = await ensureChessLoaded();
+      if (!chessReady) {
+        state.chessReady = false;
+        resetLocalGame();
+        setStatus("Firebase aktiv. chess.js konnte nicht geladen werden (CDN blockiert/kein Internet).", "error");
+        return;
+      }
+      state.chessReady = true;
+      resetLocalGame();
+      if (state.authReady) {
+        setStatus("Verbunden. Name eingeben und Matchmaking starten.", "ok");
+      } else {
+        setStatus("Schach-Engine geladen. Verbinde Firebase...", "info");
+      }
+    }
+
+    bootstrap();
   </script>
 </body>
 </html>
