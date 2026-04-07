@@ -34,7 +34,7 @@
       padding: 24px;
     }
     .app {
-      width: min(1150px, 100%);
+      width: min(1380px, 100%);
       display: grid;
       gap: 20px;
       grid-template-columns: 1.1fr 0.9fr;
@@ -46,7 +46,7 @@
       background: linear-gradient(180deg, #ffffff, #f8fafc);
       border: 1px solid rgba(15,23,42,0.08);
       border-radius: 18px;
-      padding: 20px;
+      padding: 24px;
       box-shadow: 0 10px 30px rgba(15,23,42,0.08);
     }
     h1 {
@@ -111,7 +111,7 @@
       border-radius: 14px;
       overflow: hidden;
       border: 2px solid rgba(15,23,42,0.16);
-      max-width: 520px;
+      max-width: 640px;
       margin: 10px auto 0;
     }
     .square {
@@ -315,6 +315,16 @@
       font-weight: 700;
       cursor: pointer;
     }
+    .mode-row {
+      margin-top: 10px;
+      align-items: stretch;
+    }
+    .room-code {
+      max-width: 160px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+    }
 
     @keyframes pop {
       to { transform: scale(1); }
@@ -334,6 +344,12 @@
         <input id="nameInput" type="text" placeholder="Dein Name" maxlength="20" />
         <button id="joinBtn" disabled>Matchmaking starten</button>
         <button id="leaveBtn" class="ghost" disabled>Abbrechen</button>
+      </div>
+      <div class="row mode-row">
+        <button id="createRoomBtn" class="ghost" disabled>Raum erstellen</button>
+        <input id="roomCodeInput" class="room-code" type="text" placeholder="Raum-Code" maxlength="6" />
+        <button id="joinRoomBtn" class="ghost" disabled>Raum beitreten</button>
+        <button id="aiBtn" class="secondary">Gegen KI</button>
       </div>
 
       <div id="status" class="status" style="margin-top: 12px;">Verbinde mit Firebase...</div>
@@ -460,6 +476,10 @@
       nameInput: document.getElementById("nameInput"),
       joinBtn: document.getElementById("joinBtn"),
       leaveBtn: document.getElementById("leaveBtn"),
+      createRoomBtn: document.getElementById("createRoomBtn"),
+      roomCodeInput: document.getElementById("roomCodeInput"),
+      joinRoomBtn: document.getElementById("joinRoomBtn"),
+      aiBtn: document.getElementById("aiBtn"),
       status: document.getElementById("status"),
       board: document.getElementById("board"),
       youName: document.getElementById("youName"),
@@ -502,6 +522,11 @@
       shownResultForMatch: null,
       pendingPromotion: null,
       connected: true,
+      mode: "idle",
+      roomCode: null,
+      isAiGame: false,
+      aiColor: "b",
+      aiThinking: false,
       authReady: false,
       chessReady: false,
       authMode: "firebase"
@@ -597,9 +622,13 @@
 
     function setButtonsForReady() {
       const ready = state.authReady;
-      ui.joinBtn.disabled = !ready || !!state.matchId || !!state.name;
-      ui.leaveBtn.disabled = !ready || (!state.name && !state.matchId);
+      const busy = !!state.matchId || state.isAiGame;
+      ui.joinBtn.disabled = !ready || busy || !!state.name;
+      ui.createRoomBtn.disabled = !ready || busy || !!state.name;
+      ui.joinRoomBtn.disabled = !ready || busy || !!state.name;
+      ui.leaveBtn.disabled = !ready || (!state.name && !state.matchId && !state.isAiGame);
       ui.sendChatBtn.disabled = !ready || !state.matchId;
+      ui.aiBtn.disabled = !!state.matchId || state.isAiGame;
     }
 
     function resetLocalGame() {
@@ -803,6 +832,28 @@
       state.pendingPromotion = null;
       renderBoard();
 
+      if (state.isAiGame) {
+        state.localFen = newFen;
+        log(`Du spielst: ${moveSan}`);
+        if (resolution.finished) {
+          if (resolution.result?.winnerUid) {
+            setStatus("Spiel beendet: Du hast gewonnen.", "ok");
+            ui.overlayTitle.className = "overlay-title win";
+            ui.overlayTitle.textContent = "Sieg";
+            ui.overlaySubtitle.textContent = "Du hast die KI geschlagen.";
+          } else {
+            setStatus("Spiel beendet: Remis.", "info");
+            ui.overlayTitle.className = "overlay-title draw";
+            ui.overlayTitle.textContent = "Remis";
+            ui.overlaySubtitle.textContent = "Unentschieden gegen die KI.";
+          }
+          ui.overlay.classList.add("show");
+          return true;
+        }
+        scheduleAiMove();
+        return true;
+      }
+
       const matchRef = db.ref(`matches/${state.matchId}`);
       matchRef.transaction((match) => {
         if (!match || !match.state || match.status !== "active") return;
@@ -837,12 +888,59 @@
       return true;
     }
 
+    function pickAiMove(moves) {
+      const captures = moves.filter((m) => m.captured);
+      const pool = captures.length ? captures : moves;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function scheduleAiMove() {
+      if (!state.isAiGame || state.aiThinking) return;
+      state.aiThinking = true;
+      setStatus("KI denkt...", "info");
+      setTimeout(() => {
+        if (!state.isAiGame || !state.game || state.game.turn() !== state.aiColor) {
+          state.aiThinking = false;
+          return;
+        }
+        const aiMoves = state.game.moves({ verbose: true });
+        if (!aiMoves.length) {
+          state.aiThinking = false;
+          return;
+        }
+        const chosen = pickAiMove(aiMoves);
+        const move = state.game.move(chosen);
+        state.localFen = state.game.fen();
+        renderBoard();
+        if (move) log(`KI spielt: ${move.san}`);
+
+        const resolution = evaluateResolution(state.game, "ai", "KI");
+        if (resolution.finished) {
+          if (resolution.result?.winnerUid) {
+            setStatus("Spiel beendet: Die KI hat gewonnen.", "error");
+            ui.overlayTitle.className = "overlay-title loss";
+            ui.overlayTitle.textContent = "Niederlage";
+            ui.overlaySubtitle.textContent = "Die KI hat gewonnen.";
+          } else {
+            setStatus("Spiel beendet: Remis.", "info");
+            ui.overlayTitle.className = "overlay-title draw";
+            ui.overlayTitle.textContent = "Remis";
+            ui.overlaySubtitle.textContent = "Unentschieden gegen die KI.";
+          }
+          ui.overlay.classList.add("show");
+        } else {
+          setStatus("Du bist am Zug.", "ok");
+        }
+        state.aiThinking = false;
+      }, 550);
+    }
+
     async function onSquareClick(squareId) {
       if (!state.chessReady || !state.game) {
         setStatus("Matchmaking aktiv, aber Schach-Engine fehlt noch.", "error");
         return;
       }
-      if (!state.matchId) return;
+      if (!state.matchId && !state.isAiGame) return;
       if (state.game.turn() !== state.color) return;
 
       if (!state.selected) {
@@ -1026,9 +1124,22 @@
         if (!state.uid) return;
         const payload = { lastSeen: Date.now(), online: true };
         db.ref(`presence/${state.uid}`).update(payload);
-        if (state.name && !state.matchId) {
-          db.ref(`queue/${state.uid}`).update({ lastSeen: Date.now() });
-          db.ref(`users/${state.uid}`).update({ lastSeen: Date.now(), status: "searching" });
+        if (state.name && !state.matchId && !state.isAiGame) {
+          db.ref(`queue/${state.uid}`).update({
+            lastSeen: Date.now(),
+            mode: state.mode,
+            roomCode: state.roomCode || null
+          });
+          const status = state.mode === "room-host"
+            ? "hosting_room"
+            : state.mode === "room-join"
+              ? "joining_room"
+              : "searching";
+          db.ref(`users/${state.uid}`).update({
+            lastSeen: Date.now(),
+            status,
+            roomCode: state.roomCode || null
+          });
         }
       }, 12000);
     }
@@ -1066,6 +1177,70 @@
         clearInterval(state.cleanupTimer);
         state.cleanupTimer = null;
       }
+    }
+
+    function normalizeRoomCode(input) {
+      return (input || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 6);
+    }
+
+    function createRoomCode() {
+      return Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
+    async function createPrivateMatch(hostUid, guestUid, roomCode) {
+      const lockRef = db.ref("matchmakingLock");
+      lockRef.transaction((lock) => {
+        if (lock && Date.now() - (lock.ts || 0) < 4000) return;
+        return { uid: state.uid, ts: Date.now(), roomCode };
+      }, async (err, committed) => {
+        if (err || !committed) return;
+        try {
+          const [hostQueueSnap, guestQueueSnap, hostUserSnap, guestUserSnap] = await Promise.all([
+            db.ref(`queue/${hostUid}`).get(),
+            db.ref(`queue/${guestUid}`).get(),
+            db.ref(`users/${hostUid}/matchId`).get(),
+            db.ref(`users/${guestUid}/matchId`).get()
+          ]);
+          const hostQueue = hostQueueSnap.val();
+          const guestQueue = guestQueueSnap.val();
+          if (!hostQueue || !guestQueue) return;
+          if (hostUserSnap.exists() || guestUserSnap.exists()) return;
+          if (hostQueue.mode !== "room-host" || hostQueue.roomCode !== roomCode) return;
+          if (guestQueue.mode !== "room-join" || guestQueue.roomCode !== roomCode) return;
+
+          const matchId = db.ref("matches").push().key;
+          await db.ref(`matches/${matchId}`).set({
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            updatedAt: firebase.database.ServerValue.TIMESTAMP,
+            cleanupAt: null,
+            status: "active",
+            roomCode,
+            players: {
+              [hostUid]: { name: hostQueue.name, color: "w", joinedAt: Date.now() },
+              [guestUid]: { name: guestQueue.name, color: "b", joinedAt: Date.now() }
+            },
+            state: {
+              fen: START_FEN,
+              turn: "w",
+              updatedAt: firebase.database.ServerValue.TIMESTAMP,
+              lastMoveBy: null,
+              lastMoveSan: null,
+              moveCount: 0
+            }
+          });
+          await Promise.all([
+            db.ref(`users/${hostUid}`).update({ status: "in_match", matchId, roomCode, lastSeen: Date.now() }),
+            db.ref(`users/${guestUid}`).update({ status: "in_match", matchId, roomCode, lastSeen: Date.now() }),
+            db.ref(`queue/${hostUid}`).remove(),
+            db.ref(`queue/${guestUid}`).remove()
+          ]);
+        } finally {
+          await lockRef.remove();
+        }
+      });
     }
 
     async function createMatchFromQueue(firstUid) {
@@ -1137,6 +1312,9 @@
       }
       if (state.name || state.matchId) return;
 
+      state.mode = "quick";
+      state.roomCode = null;
+      state.isAiGame = false;
       state.name = name;
       ui.youName.textContent = name;
       ui.joinBtn.disabled = true;
@@ -1148,8 +1326,8 @@
       const queueRef = db.ref(`queue/${state.uid}`);
       const presenceRef = db.ref(`presence/${state.uid}`);
 
-      await userRef.set({ name, status: "searching", joinedAt: Date.now(), lastSeen: Date.now() });
-      await queueRef.set({ name, joinedAt: Date.now(), lastSeen: Date.now() });
+      await userRef.set({ name, status: "searching", joinedAt: Date.now(), lastSeen: Date.now(), roomCode: null });
+      await queueRef.set({ name, joinedAt: Date.now(), lastSeen: Date.now(), mode: "quick", roomCode: null });
       await presenceRef.set({ online: true, lastSeen: Date.now() });
 
       userRef.onDisconnect().update({ status: "offline", lastSeen: firebase.database.ServerValue.TIMESTAMP });
@@ -1172,7 +1350,7 @@
       const queueQuery = db.ref("queue");
       const queueListener = queueQuery.on("value", async (snap) => {
         if (!state.name || state.matchId) return;
-        const candidates = getLiveQueueCandidates(snap.val());
+        const candidates = getLiveQueueCandidates(snap.val()).filter(([, entry]) => (entry.mode || "quick") === "quick");
         if (candidates.length < 2) return;
         const firstUid = candidates[0][0];
         if (firstUid !== state.uid) return;
@@ -1181,9 +1359,193 @@
       state.listeners.push(() => queueQuery.off("value", queueListener));
     }
 
-    async function leaveEverything(options = { clearInput: true }) {
-      if (!state.uid) return;
+    async function createRoom() {
+      if (!state.authReady || !state.uid) {
+        setStatus("Bitte warten: Auth wird initialisiert.", "error");
+        return;
+      }
+      const name = ui.nameInput.value.trim();
+      if (!name) {
+        setStatus("Bitte gib einen Namen ein.", "error");
+        return;
+      }
+      if (state.name || state.matchId || state.isAiGame) return;
 
+      const roomCode = createRoomCode();
+      state.mode = "room-host";
+      state.roomCode = roomCode;
+      state.isAiGame = false;
+      state.name = name;
+      ui.youName.textContent = name;
+      ui.roomCodeInput.value = roomCode;
+      ui.joinBtn.disabled = true;
+      ui.leaveBtn.disabled = false;
+      setStatus(`Raum ${roomCode} erstellt. Warte auf Gegner...`, "ok");
+      log(`Raum erstellt: ${roomCode}`);
+
+      const userRef = db.ref(`users/${state.uid}`);
+      const queueRef = db.ref(`queue/${state.uid}`);
+      const presenceRef = db.ref(`presence/${state.uid}`);
+
+      await userRef.set({
+        name,
+        status: "hosting_room",
+        roomCode,
+        joinedAt: Date.now(),
+        lastSeen: Date.now()
+      });
+      await queueRef.set({
+        name,
+        joinedAt: Date.now(),
+        lastSeen: Date.now(),
+        mode: "room-host",
+        roomCode
+      });
+      await presenceRef.set({ online: true, lastSeen: Date.now() });
+
+      userRef.onDisconnect().update({ status: "offline", lastSeen: firebase.database.ServerValue.TIMESTAMP });
+      queueRef.onDisconnect().remove();
+      presenceRef.onDisconnect().set({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+      startHeartbeat();
+
+      const matchChildRef = userRef.child("matchId");
+      const matchListener = matchChildRef.on("value", (snap) => {
+        const matchId = snap.val();
+        if (matchId && !state.matchId) {
+          setStatus("Gegner ist beigetreten!", "ok");
+          listenToMatch(matchId);
+          startCleanupLoop();
+        }
+      });
+      state.listeners.push(() => matchChildRef.off("value", matchListener));
+
+      const queueQuery = db.ref("queue");
+      const queueListener = queueQuery.on("value", async (snap) => {
+        if (state.mode !== "room-host" || !state.roomCode || state.matchId) return;
+        const candidates = getLiveQueueCandidates(snap.val());
+        const joiner = candidates.find(([uid, entry]) =>
+          uid !== state.uid &&
+          entry.mode === "room-join" &&
+          entry.roomCode === state.roomCode
+        );
+        if (!joiner) return;
+        await createPrivateMatch(state.uid, joiner[0], state.roomCode);
+      });
+      state.listeners.push(() => queueQuery.off("value", queueListener));
+      setButtonsForReady();
+    }
+
+    async function joinRoom() {
+      if (!state.authReady || !state.uid) {
+        setStatus("Bitte warten: Auth wird initialisiert.", "error");
+        return;
+      }
+      const name = ui.nameInput.value.trim();
+      if (!name) {
+        setStatus("Bitte gib einen Namen ein.", "error");
+        return;
+      }
+      const roomCode = normalizeRoomCode(ui.roomCodeInput.value);
+      if (!roomCode) {
+        setStatus("Bitte gib einen gueltigen Raum-Code ein.", "error");
+        return;
+      }
+      if (state.name || state.matchId || state.isAiGame) return;
+
+      state.mode = "room-join";
+      state.roomCode = roomCode;
+      state.isAiGame = false;
+      state.name = name;
+      ui.youName.textContent = name;
+      ui.roomCodeInput.value = roomCode;
+      ui.joinBtn.disabled = true;
+      ui.leaveBtn.disabled = false;
+      setStatus(`Trete Raum ${roomCode} bei...`, "info");
+
+      const userRef = db.ref(`users/${state.uid}`);
+      const queueRef = db.ref(`queue/${state.uid}`);
+      const presenceRef = db.ref(`presence/${state.uid}`);
+
+      await userRef.set({
+        name,
+        status: "joining_room",
+        roomCode,
+        joinedAt: Date.now(),
+        lastSeen: Date.now()
+      });
+      await queueRef.set({
+        name,
+        joinedAt: Date.now(),
+        lastSeen: Date.now(),
+        mode: "room-join",
+        roomCode
+      });
+      await presenceRef.set({ online: true, lastSeen: Date.now() });
+
+      userRef.onDisconnect().update({ status: "offline", lastSeen: firebase.database.ServerValue.TIMESTAMP });
+      queueRef.onDisconnect().remove();
+      presenceRef.onDisconnect().set({ online: false, lastSeen: firebase.database.ServerValue.TIMESTAMP });
+      startHeartbeat();
+
+      const matchChildRef = userRef.child("matchId");
+      const matchListener = matchChildRef.on("value", (snap) => {
+        const matchId = snap.val();
+        if (matchId && !state.matchId) {
+          setStatus("Raum betreten. Viel Erfolg!", "ok");
+          listenToMatch(matchId);
+          startCleanupLoop();
+        }
+      });
+      state.listeners.push(() => matchChildRef.off("value", matchListener));
+
+      const queueQuery = db.ref("queue");
+      const queueListener = queueQuery.on("value", async (snap) => {
+        if (state.mode !== "room-join" || !state.roomCode || state.matchId) return;
+        const candidates = getLiveQueueCandidates(snap.val());
+        const host = candidates.find(([uid, entry]) =>
+          uid !== state.uid &&
+          entry.mode === "room-host" &&
+          entry.roomCode === state.roomCode
+        );
+        if (!host) return;
+        await createPrivateMatch(host[0], state.uid, state.roomCode);
+      });
+      state.listeners.push(() => queueQuery.off("value", queueListener));
+      setButtonsForReady();
+    }
+
+    function startAiGame() {
+      const name = ui.nameInput.value.trim() || "Du";
+      if (state.matchId || state.name || state.isAiGame) return;
+      if (!state.chessReady || !state.game) {
+        setStatus("Schach-Engine wird noch geladen.", "error");
+        return;
+      }
+      state.mode = "ai";
+      state.roomCode = null;
+      state.isAiGame = true;
+      state.aiThinking = false;
+      state.color = "w";
+      state.name = name;
+      state.opponent = { name: "KI" };
+      ui.youName.textContent = name;
+      ui.youColor.textContent = "Weiss";
+      ui.oppName.textContent = "KI";
+      ui.matchId.textContent = "KI";
+      ui.turnInfo.textContent = "Weiss";
+      ui.gameState.textContent = "Laufend";
+      ui.resignBtn.disabled = false;
+      ui.resetBtn.disabled = false;
+      ui.sendChatBtn.disabled = true;
+      hideOverlay();
+      hidePromotionOverlay();
+      resetLocalGame();
+      setStatus("KI-Spiel gestartet. Du bist am Zug.", "ok");
+      log("Neues Spiel gegen KI gestartet.");
+      setButtonsForReady();
+    }
+
+    async function leaveEverything(options = { clearInput: true }) {
       cleanupListeners();
       stopCleanupLoop();
       stopHeartbeat();
@@ -1191,10 +1553,11 @@
         clearTimeout(state.matchMissingTimer);
         state.matchMissingTimer = null;
       }
-
-      await db.ref(`queue/${state.uid}`).remove();
-      await db.ref(`users/${state.uid}`).remove();
-      await db.ref(`presence/${state.uid}`).update({ online: false, lastSeen: Date.now() });
+      if (state.uid) {
+        await db.ref(`queue/${state.uid}`).remove();
+        await db.ref(`users/${state.uid}`).remove();
+        await db.ref(`presence/${state.uid}`).update({ online: false, lastSeen: Date.now() });
+      }
 
       state.matchId = null;
       state.color = null;
@@ -1205,9 +1568,14 @@
       state.shownResultForMatch = null;
       state.pendingPromotion = null;
       state.name = null;
+      state.mode = "idle";
+      state.roomCode = null;
+      state.isAiGame = false;
+      state.aiThinking = false;
 
       if (options.clearInput) {
         ui.nameInput.value = "";
+        ui.roomCodeInput.value = "";
       }
 
       ui.youName.textContent = "-";
@@ -1227,6 +1595,14 @@
     }
 
     async function resign() {
+      if (state.isAiGame) {
+        ui.overlayTitle.className = "overlay-title loss";
+        ui.overlayTitle.textContent = "Niederlage";
+        ui.overlaySubtitle.textContent = "Du hast gegen die KI aufgegeben.";
+        ui.overlay.classList.add("show");
+        setStatus("Du hast aufgegeben.", "error");
+        return;
+      }
       if (!state.matchId) return;
       const matchRef = db.ref(`matches/${state.matchId}`);
       await matchRef.transaction((match) => {
@@ -1246,6 +1622,14 @@
     }
 
     async function resetGame() {
+      if (state.isAiGame) {
+        resetLocalGame();
+        hideOverlay();
+        state.aiThinking = false;
+        setStatus("Neues KI-Spiel gestartet.", "ok");
+        log("KI-Spiel zurueckgesetzt.");
+        return;
+      }
       if (!state.matchId) return;
       if (!state.chessReady) {
         setStatus("Schach-Engine fehlt. Reset nur mit geladener Engine moeglich.", "error");
@@ -1305,10 +1689,25 @@
         if (state.matchId) {
           await db.ref(`users/${state.uid}`).update({ status: "in_match", matchId: state.matchId, lastSeen: Date.now() });
           setStatus("Wieder verbunden. Match laeuft weiter.", "ok");
-        } else if (state.name) {
-          await db.ref(`users/${state.uid}`).update({ name: state.name, status: "searching", lastSeen: Date.now() });
-          await db.ref(`queue/${state.uid}`).update({ name: state.name, lastSeen: Date.now() });
-          setStatus("Wieder verbunden. Matchmaking laeuft.", "ok");
+        } else if (state.name && !state.isAiGame) {
+          const status = state.mode === "room-host"
+            ? "hosting_room"
+            : state.mode === "room-join"
+              ? "joining_room"
+              : "searching";
+          await db.ref(`users/${state.uid}`).update({
+            name: state.name,
+            status,
+            roomCode: state.roomCode || null,
+            lastSeen: Date.now()
+          });
+          await db.ref(`queue/${state.uid}`).update({
+            name: state.name,
+            mode: state.mode === "idle" ? "quick" : state.mode,
+            roomCode: state.roomCode || null,
+            lastSeen: Date.now()
+          });
+          setStatus("Wieder verbunden.", "ok");
         }
       });
 
@@ -1345,12 +1744,18 @@
     }
 
     ui.joinBtn.addEventListener("click", joinQueue);
+    ui.createRoomBtn.addEventListener("click", createRoom);
+    ui.joinRoomBtn.addEventListener("click", joinRoom);
+    ui.aiBtn.addEventListener("click", startAiGame);
     ui.leaveBtn.addEventListener("click", () => leaveEverything({ clearInput: true }));
     ui.resignBtn.addEventListener("click", resign);
     ui.resetBtn.addEventListener("click", resetGame);
     ui.sendChatBtn.addEventListener("click", sendChat);
     ui.chatInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") sendChat();
+    });
+    ui.roomCodeInput.addEventListener("input", () => {
+      ui.roomCodeInput.value = normalizeRoomCode(ui.roomCodeInput.value);
     });
     ui.overlayCloseBtn.addEventListener("click", hideOverlay);
     ui.promoButtons.forEach((btn) => {
