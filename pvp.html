@@ -127,7 +127,31 @@
     .square.light { background: var(--board-light); }
     .square.dark { background: var(--board-dark); }
     .square.selected { background: var(--sel) !important; }
-    .square.move { background: var(--move) !important; color: #0b1220; }
+    .square.move { background: inherit; }
+    .move-dot {
+      width: 18%;
+      height: 18%;
+      min-width: 10px;
+      min-height: 10px;
+      border-radius: 999px;
+      background: rgba(34, 211, 238, 0.75);
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      margin: auto;
+    }
+    .move-ring {
+      width: 72%;
+      height: 72%;
+      border-radius: 999px;
+      border: 4px solid rgba(34, 211, 238, 0.78);
+      background: transparent;
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      margin: auto;
+    }
     .piece {
       line-height: 1;
       pointer-events: none;
@@ -581,7 +605,13 @@
         div.appendChild(pieceEl);
       }
       if (state.selected === squareId) div.classList.add("selected");
-      if (state.legalMoves.includes(squareId)) div.classList.add("move");
+      if (state.legalMoves.includes(squareId)) {
+        div.classList.add("move");
+        const targetPiece = state.game ? state.game.get(squareId) : null;
+        const marker = document.createElement("span");
+        marker.className = targetPiece ? "move-ring" : "move-dot";
+        div.appendChild(marker);
+      }
       div.addEventListener("click", () => onSquareClick(squareId));
       return div;
     }
