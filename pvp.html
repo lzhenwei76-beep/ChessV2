@@ -270,7 +270,11 @@
       padding: 28px 20px;
       transform: scale(0.95);
       animation: pop 320ms ease forwards;
+      will-change: transform, box-shadow;
     }
+    .overlay-card.fx-win { animation: pop 320ms ease forwards, pulse-win 900ms ease; }
+    .overlay-card.fx-loss { animation: pop 320ms ease forwards, pulse-loss 900ms ease; }
+    .overlay-card.fx-draw { animation: pop 320ms ease forwards, pulse-draw 900ms ease; }
     .overlay-title {
       font-size: clamp(28px, 6vw, 52px);
       font-weight: 700;
@@ -328,6 +332,30 @@
 
     @keyframes pop {
       to { transform: scale(1); }
+    }
+    @keyframes pulse-win {
+      0% { box-shadow: 0 0 0 rgba(16,185,129,0); }
+      50% { box-shadow: 0 0 0 12px rgba(16,185,129,0.2); }
+      100% { box-shadow: 0 0 0 rgba(16,185,129,0); }
+    }
+    @keyframes pulse-loss {
+      0% { box-shadow: 0 0 0 rgba(239,68,68,0); }
+      50% { box-shadow: 0 0 0 12px rgba(239,68,68,0.18); }
+      100% { box-shadow: 0 0 0 rgba(239,68,68,0); }
+    }
+    @keyframes pulse-draw {
+      0% { box-shadow: 0 0 0 rgba(234,179,8,0); }
+      50% { box-shadow: 0 0 0 12px rgba(234,179,8,0.2); }
+      100% { box-shadow: 0 0 0 rgba(234,179,8,0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .overlay,
+      .overlay-card,
+      button,
+      .square {
+        transition: none !important;
+        animation: none !important;
+      }
     }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -394,7 +422,7 @@
   </div>
 
   <div id="resultOverlay" class="overlay">
-    <div class="overlay-card">
+    <div id="overlayCard" class="overlay-card">
       <div id="overlayTitle" class="overlay-title">Spiel beendet</div>
       <div id="overlaySubtitle" class="muted"></div>
       <div class="row" style="justify-content:center; margin-top:14px;">
@@ -495,6 +523,7 @@
       resignBtn: document.getElementById("resignBtn"),
       resetBtn: document.getElementById("resetBtn"),
       overlay: document.getElementById("resultOverlay"),
+      overlayCard: document.getElementById("overlayCard"),
       overlayTitle: document.getElementById("overlayTitle"),
       overlaySubtitle: document.getElementById("overlaySubtitle"),
       overlayCloseBtn: document.getElementById("overlayCloseBtn"),
@@ -772,6 +801,14 @@
       }
     }
 
+    function showOverlay(kind, title, subtitle) {
+      ui.overlayTitle.className = `overlay-title ${kind}`;
+      ui.overlayTitle.textContent = title;
+      ui.overlaySubtitle.textContent = subtitle;
+      ui.overlayCard.className = `overlay-card fx-${kind}`;
+      ui.overlay.classList.add("show");
+    }
+
     function showResultOverlay(match) {
       if (!match || !match.result || !state.matchId) return;
       if (state.shownResultForMatch === state.matchId) return;
@@ -784,24 +821,30 @@
       if (result.winnerUid) {
         if (result.winnerUid === state.uid) {
           titleClass = "win";
-          title = "Sieg";
-          subtitle = result.type === "checkmate" ? "Du hast per Schachmatt gewonnen." : "Du hast gewonnen.";
+          title = result.type === "resigned" ? "Sieg" : "Sieg";
+          subtitle = result.type === "checkmate"
+            ? "Du hast per Schachmatt gewonnen."
+            : result.type === "resigned"
+              ? "Der Gegner hat aufgegeben."
+              : "Du hast gewonnen.";
         } else {
           titleClass = "loss";
-          title = "Niederlage";
-          subtitle = result.type === "checkmate" ? "Du wurdest schachmatt gesetzt." : "Der Gegner hat gewonnen.";
+          title = result.type === "resigned" ? "Aufgegeben" : "Niederlage";
+          subtitle = result.type === "checkmate"
+            ? "Du wurdest schachmatt gesetzt."
+            : result.type === "resigned"
+              ? "Du hast aufgegeben."
+              : "Der Gegner hat gewonnen.";
         }
       }
 
-      ui.overlayTitle.className = `overlay-title ${titleClass}`;
-      ui.overlayTitle.textContent = title;
-      ui.overlaySubtitle.textContent = subtitle;
-      ui.overlay.classList.add("show");
+      showOverlay(titleClass, title, subtitle);
       state.shownResultForMatch = state.matchId;
     }
 
     function hideOverlay() {
       ui.overlay.classList.remove("show");
+      ui.overlayCard.className = "overlay-card";
     }
 
     function showPromotionOverlay() {
@@ -838,16 +881,11 @@
         if (resolution.finished) {
           if (resolution.result?.winnerUid) {
             setStatus("Spiel beendet: Du hast gewonnen.", "ok");
-            ui.overlayTitle.className = "overlay-title win";
-            ui.overlayTitle.textContent = "Sieg";
-            ui.overlaySubtitle.textContent = "Du hast die KI geschlagen.";
+            showOverlay("win", "Sieg", "Du hast die KI geschlagen.");
           } else {
             setStatus("Spiel beendet: Remis.", "info");
-            ui.overlayTitle.className = "overlay-title draw";
-            ui.overlayTitle.textContent = "Remis";
-            ui.overlaySubtitle.textContent = "Unentschieden gegen die KI.";
+            showOverlay("draw", "Remis", "Unentschieden gegen die KI.");
           }
-          ui.overlay.classList.add("show");
           return true;
         }
         scheduleAiMove();
@@ -918,16 +956,11 @@
         if (resolution.finished) {
           if (resolution.result?.winnerUid) {
             setStatus("Spiel beendet: Die KI hat gewonnen.", "error");
-            ui.overlayTitle.className = "overlay-title loss";
-            ui.overlayTitle.textContent = "Niederlage";
-            ui.overlaySubtitle.textContent = "Die KI hat gewonnen.";
+            showOverlay("loss", "Niederlage", "Die KI hat gewonnen.");
           } else {
             setStatus("Spiel beendet: Remis.", "info");
-            ui.overlayTitle.className = "overlay-title draw";
-            ui.overlayTitle.textContent = "Remis";
-            ui.overlaySubtitle.textContent = "Unentschieden gegen die KI.";
+            showOverlay("draw", "Remis", "Unentschieden gegen die KI.");
           }
-          ui.overlay.classList.add("show");
         } else {
           setStatus("Du bist am Zug.", "ok");
         }
@@ -987,9 +1020,14 @@
         return;
       }
 
-      state.localFen = match.state?.fen || state.game.fen();
-      state.game.load(state.localFen);
-      renderBoard();
+      const nextFen = match.state?.fen || state.game.fen();
+      if (nextFen !== state.localFen) {
+        state.localFen = nextFen;
+        state.selected = null;
+        state.legalMoves = [];
+        state.game.load(state.localFen);
+        renderBoard();
+      }
 
       const moveCount = match.state?.moveCount || 0;
       const moveSan = match.state?.lastMoveSan;
@@ -1024,6 +1062,7 @@
 
       if (match.status === "abandoned") {
         setStatus("Spiel beendet: Aufgabe.", "error");
+        showResultOverlay(match);
       }
     }
 
@@ -1596,10 +1635,7 @@
 
     async function resign() {
       if (state.isAiGame) {
-        ui.overlayTitle.className = "overlay-title loss";
-        ui.overlayTitle.textContent = "Niederlage";
-        ui.overlaySubtitle.textContent = "Du hast gegen die KI aufgegeben.";
-        ui.overlay.classList.add("show");
+        showOverlay("loss", "Aufgegeben", "Du hast gegen die KI aufgegeben.");
         setStatus("Du hast aufgegeben.", "error");
         return;
       }
