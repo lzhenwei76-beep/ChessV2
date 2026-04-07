@@ -1148,8 +1148,13 @@
           await auth.signInAnonymously();
         } catch (error) {
           const code = error && error.code ? ` (${error.code})` : "";
-          if (error && error.code === "auth/configuration-not-found") {
-            enableGuestMode("auth/configuration-not-found");
+          const fallbackCodes = new Set([
+            "auth/configuration-not-found",
+            "auth/admin-restricted-operation",
+            "auth/operation-not-allowed"
+          ]);
+          if (error && fallbackCodes.has(error.code)) {
+            enableGuestMode(error.code);
             return;
           }
           setStatus("Firebase Auth Fehler" + code + ": " + error.message, "error");
