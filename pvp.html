@@ -319,10 +319,35 @@
       font-weight: 700;
       cursor: pointer;
     }
+    .start-menu {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (max-width: 720px) {
+      .start-menu { grid-template-columns: 1fr; }
+    }
+    .mode-choice {
+      background: #f8fafc;
+      color: #0f172a;
+      border: 1px solid rgba(15,23,42,0.12);
+      text-align: left;
+      padding: 12px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .mode-choice.active {
+      border-color: rgba(14,165,233,0.65);
+      background: rgba(14,165,233,0.08);
+      box-shadow: 0 0 0 2px rgba(14,165,233,0.18) inset;
+    }
     .mode-row {
       margin-top: 10px;
       align-items: stretch;
     }
+    .hidden { display: none !important; }
     .room-code {
       max-width: 160px;
       text-transform: uppercase;
@@ -367,17 +392,23 @@
     <section class="panel">
       <h1>Schach PvP Matchmaking</h1>
       <p class="muted">Name eingeben, Matchmaking starten, Gegner finden und direkt online spielen.</p>
+      <div class="start-menu">
+        <button class="mode-choice active" data-mode="quick">Schnelles Matchmaking</button>
+        <button class="mode-choice" data-mode="ai">Gegen KI</button>
+        <button class="mode-choice" data-mode="create">Raum erstellen</button>
+        <button class="mode-choice" data-mode="join">Raum beitreten</button>
+      </div>
 
       <div class="row" style="margin-top: 12px;">
         <input id="nameInput" type="text" placeholder="Dein Name" maxlength="20" />
-        <button id="joinBtn" disabled>Matchmaking starten</button>
         <button id="leaveBtn" class="ghost" disabled>Abbrechen</button>
       </div>
       <div class="row mode-row">
-        <button id="createRoomBtn" class="ghost" disabled>Raum erstellen</button>
-        <input id="roomCodeInput" class="room-code" type="text" placeholder="Raum-Code" maxlength="6" />
-        <button id="joinRoomBtn" class="ghost" disabled>Raum beitreten</button>
-        <button id="aiBtn" class="secondary">Gegen KI</button>
+        <button id="joinBtn" disabled>Matchmaking starten</button>
+        <button id="createRoomBtn" class="ghost hidden" disabled>Raum erstellen</button>
+        <input id="roomCodeInput" class="room-code hidden" type="text" placeholder="Raum-Code" maxlength="6" />
+        <button id="joinRoomBtn" class="ghost hidden" disabled>Raum beitreten</button>
+        <button id="aiBtn" class="secondary hidden">Gegen KI starten</button>
       </div>
 
       <div id="status" class="status" style="margin-top: 12px;">Verbinde mit Firebase...</div>
@@ -504,6 +535,7 @@
       nameInput: document.getElementById("nameInput"),
       joinBtn: document.getElementById("joinBtn"),
       leaveBtn: document.getElementById("leaveBtn"),
+      modeChoices: Array.from(document.querySelectorAll(".mode-choice")),
       createRoomBtn: document.getElementById("createRoomBtn"),
       roomCodeInput: document.getElementById("roomCodeInput"),
       joinRoomBtn: document.getElementById("joinRoomBtn"),
@@ -551,6 +583,7 @@
       shownResultForMatch: null,
       pendingPromotion: null,
       connected: true,
+      selectedMode: "quick",
       mode: "idle",
       roomCode: null,
       isAiGame: false,
@@ -652,12 +685,39 @@
     function setButtonsForReady() {
       const ready = state.authReady;
       const busy = !!state.matchId || state.isAiGame;
-      ui.joinBtn.disabled = !ready || busy || !!state.name;
-      ui.createRoomBtn.disabled = !ready || busy || !!state.name;
-      ui.joinRoomBtn.disabled = !ready || busy || !!state.name;
+      const modeLocked = busy || !!state.name;
+      ui.joinBtn.disabled = !ready || modeLocked || state.selectedMode !== "quick";
+      ui.createRoomBtn.disabled = !ready || modeLocked || state.selectedMode !== "create";
+      ui.joinRoomBtn.disabled = !ready || modeLocked || state.selectedMode !== "join";
       ui.leaveBtn.disabled = !ready || (!state.name && !state.matchId && !state.isAiGame);
       ui.sendChatBtn.disabled = !ready || !state.matchId;
-      ui.aiBtn.disabled = !!state.matchId || state.isAiGame;
+      ui.aiBtn.disabled = !ready || modeLocked || state.selectedMode !== "ai";
+      ui.modeChoices.forEach((btn) => {
+        btn.disabled = !ready || modeLocked;
+      });
+      updateModeUI();
+    }
+
+    function updateModeUI() {
+      const mode = state.selectedMode;
+      ui.modeChoices.forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.mode === mode);
+      });
+      ui.joinBtn.classList.toggle("hidden", mode !== "quick");
+      ui.createRoomBtn.classList.toggle("hidden", mode !== "create");
+      ui.roomCodeInput.classList.toggle("hidden", mode !== "join");
+      ui.joinRoomBtn.classList.toggle("hidden", mode !== "join");
+      ui.aiBtn.classList.toggle("hidden", mode !== "ai");
+    }
+
+    function setSelectedMode(mode) {
+      if (!["quick", "ai", "create", "join"].includes(mode)) return;
+      if (state.name || state.matchId || state.isAiGame) {
+        setStatus("Bitte erst aktuelles Spiel/Matchmaking abbrechen.", "info");
+        return;
+      }
+      state.selectedMode = mode;
+      setButtonsForReady();
     }
 
     function resetLocalGame() {
@@ -1783,6 +1843,9 @@
     ui.createRoomBtn.addEventListener("click", createRoom);
     ui.joinRoomBtn.addEventListener("click", joinRoom);
     ui.aiBtn.addEventListener("click", startAiGame);
+    ui.modeChoices.forEach((btn) => {
+      btn.addEventListener("click", () => setSelectedMode(btn.dataset.mode));
+    });
     ui.leaveBtn.addEventListener("click", () => leaveEverything({ clearInput: true }));
     ui.resignBtn.addEventListener("click", resign);
     ui.resetBtn.addEventListener("click", resetGame);
