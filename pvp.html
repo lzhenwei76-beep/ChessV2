@@ -106,6 +106,7 @@
     .board {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, minmax(0, 1fr));
       aspect-ratio: 1;
       border-radius: 14px;
       overflow: hidden;
@@ -120,11 +121,25 @@
       user-select: none;
       cursor: pointer;
       transition: background 0.12s ease;
+      position: relative;
+      min-height: 0;
     }
-    .square.light { background: var(--board-light); color: #0b1220; }
+    .square.light { background: var(--board-light); }
     .square.dark { background: var(--board-dark); }
     .square.selected { background: var(--sel) !important; }
     .square.move { background: var(--move) !important; color: #0b1220; }
+    .piece {
+      line-height: 1;
+      pointer-events: none;
+    }
+    .piece.white {
+      color: #f8fafc;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.8), 0 0 8px rgba(148,163,184,0.45);
+    }
+    .piece.black {
+      color: #0f172a;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.35), 0 0 8px rgba(2,6,23,0.35);
+    }
     .info-grid {
       display: grid;
       gap: 10px;
@@ -470,9 +485,10 @@
     async function ensureChessLoaded() {
       if (typeof Chess !== "undefined") return true;
       const sources = [
-        "https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js",
-        "https://cdn.jsdelivr.net/npm/chess.js@1.0.0/dist/chess.min.js",
-        "https://unpkg.com/chess.js@1.0.0/dist/chess.min.js"
+        "https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.11.0/chess.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js",
+        "https://unpkg.com/chess.js@0.11.0/chess.js",
+        "https://cdn.jsdelivr.net/npm/chess.js@0.11.0/chess.min.js"
       ];
       for (const src of sources) {
         try {
@@ -481,6 +497,15 @@
         } catch (_) {
           // Try next CDN.
         }
+      }
+      try {
+        const mod = await import("https://esm.sh/chess.js@1.0.0-beta.6");
+        if (mod && mod.Chess) {
+          window.Chess = mod.Chess;
+          return true;
+        }
+      } catch (_) {
+        // ESM fallback failed.
       }
       return false;
     }
@@ -549,7 +574,12 @@
       const div = document.createElement("div");
       div.className = `square ${isLight ? "light" : "dark"}`;
       div.dataset.square = squareId;
-      div.textContent = piece ? pieceMap[piece] : "";
+      if (piece) {
+        const pieceEl = document.createElement("span");
+        pieceEl.className = `piece ${piece === piece.toUpperCase() ? "white" : "black"}`;
+        pieceEl.textContent = pieceMap[piece] || "";
+        div.appendChild(pieceEl);
+      }
       if (state.selected === squareId) div.classList.add("selected");
       if (state.legalMoves.includes(squareId)) div.classList.add("move");
       div.addEventListener("click", () => onSquareClick(squareId));
