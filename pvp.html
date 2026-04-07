@@ -306,7 +306,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js" integrity="sha512-wlOl1P1dR1w9kqOTj6E81bITxjX7RcP8cH2pS0/2F9r4rY2+G4ALNT+O7s5ZP1/92fSpfQO1uAExs3o2UR0kpg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js"></script>
 
   <script>
     const firebaseConfig = {
@@ -386,6 +386,12 @@
       overlayCloseBtn: document.getElementById("overlayCloseBtn"),
       rulesBox: document.getElementById("rulesBox")
     };
+
+    if (typeof Chess === "undefined") {
+      ui.status.textContent = "Fehler: chess.js konnte nicht geladen werden. Seite neu laden.";
+      ui.status.style.borderColor = "rgba(239,68,68,0.6)";
+      throw new Error("Chess library missing");
+    }
 
     const state = {
       uid: null,
@@ -1041,6 +1047,11 @@
       ui.rulesBox.textContent = RULES_TEXT;
       resetLocalGame();
 
+      if (window.location.protocol === "file:") {
+        setStatus("Bitte ueber http://localhost starten, nicht ueber file://", "error");
+        return;
+      }
+
       auth.onAuthStateChanged(async (user) => {
         if (user) {
           state.uid = user.uid;
@@ -1053,7 +1064,8 @@
         try {
           await auth.signInAnonymously();
         } catch (error) {
-          setStatus("Firebase Auth Fehler: " + error.message, "error");
+          const code = error && error.code ? ` (${error.code})` : "";
+          setStatus("Firebase Auth Fehler" + code + ": " + error.message, "error");
         }
       });
     }
