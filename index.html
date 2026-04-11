@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ChessMateX</title>
+  <title>ChessMateX - Schach Matchmaking</title>
   <style>
     :root {
       --bg: #eef3f8;
@@ -19,7 +19,11 @@
       --board-dark: #b58863;
       --sel: #fde68a;
       --move: #0ea5e9;
+      --board-max: 640px;
+      --replay-board-max: 520px;
     }
+    body.ui-scale-large { font-size: 1.08rem; }
+    body.ui-scale-xlarge { font-size: 1.16rem; }
     * { box-sizing: border-box; }
     body {
       margin: 0;
@@ -32,6 +36,18 @@
       display: grid;
       place-items: center;
       padding: 24px;
+    }
+    body.layout-compact .app {
+      width: min(1120px, 100%);
+    }
+    body.layout-compact .panel {
+      padding: 18px;
+    }
+    body.layout-wide .app {
+      width: min(1600px, 100%);
+    }
+    body.layout-wide .panel {
+      padding: 28px;
     }
     .app-loader {
       position: fixed;
@@ -77,6 +93,83 @@
       border-radius: 18px;
       padding: 24px;
       box-shadow: 0 10px 30px rgba(15,23,42,0.08);
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    body.theme-glass {
+      background:
+        radial-gradient(620px 320px at 10% 8%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 72%),
+        radial-gradient(560px 300px at 90% 14%, rgba(14,165,233,0.18) 0%, rgba(14,165,233,0) 74%),
+        radial-gradient(700px 360px at 50% 92%, rgba(249,115,22,0.14) 0%, rgba(249,115,22,0) 70%),
+        linear-gradient(160deg, #dce8f6 0%, #d9f0f6 45%, #e8eef9 100%);
+    }
+    body.theme-glass .panel {
+      background:
+        linear-gradient(165deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.28) 45%, rgba(255,255,255,0.18) 100%),
+        linear-gradient(180deg, rgba(255,255,255,0.52), rgba(248,250,252,0.22));
+      border-color: rgba(255,255,255,0.58);
+      box-shadow:
+        0 22px 52px rgba(15,23,42,0.2),
+        inset 0 1px 0 rgba(255,255,255,0.82),
+        inset 0 -1px 0 rgba(255,255,255,0.24);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+    }
+    body.theme-glass .panel::before {
+      content: "";
+      position: absolute;
+      inset: -30% -20% auto auto;
+      width: 240px;
+      height: 240px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.52), rgba(255,255,255,0.05) 65%, rgba(255,255,255,0) 75%);
+      filter: blur(1px);
+      pointer-events: none;
+      z-index: -1;
+      animation: liquid-float 8s ease-in-out infinite;
+    }
+    body.theme-glass .panel::after {
+      content: "";
+      position: absolute;
+      left: -14%;
+      top: -46%;
+      width: 130%;
+      height: 72%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0));
+      transform: rotate(-4deg);
+      pointer-events: none;
+      z-index: -1;
+    }
+    body.theme-glass .status,
+    body.theme-glass .log,
+    body.theme-glass .chat-log,
+    body.theme-glass .big-elo,
+    body.theme-glass .settings-card,
+    body.theme-glass .promo-card,
+    body.theme-glass .intro-card,
+    body.theme-glass .ban-card,
+    body.theme-glass .overlay-card {
+      background: linear-gradient(155deg, rgba(255,255,255,0.58), rgba(255,255,255,0.28));
+      border-color: rgba(255,255,255,0.55);
+      backdrop-filter: blur(14px) saturate(150%);
+      -webkit-backdrop-filter: blur(14px) saturate(150%);
+      box-shadow: 0 14px 30px rgba(15,23,42,0.14), inset 0 1px 0 rgba(255,255,255,0.72);
+    }
+    body.theme-classic {
+      font-family: "Noto Serif", Georgia, "Times New Roman", serif;
+      background: radial-gradient(1000px 560px at 50% -30%, #f7ecd2 0%, transparent 55%), #f5efe2;
+    }
+    body.theme-classic .panel {
+      background: linear-gradient(180deg, #fffaf0, #f3e8d3);
+      border-color: rgba(92,69,42,0.26);
+      box-shadow: 0 12px 26px rgba(74,55,33,0.15);
+    }
+    body.theme-classic .status,
+    body.theme-classic .log,
+    body.theme-classic .chat-log {
+      background: rgba(255,249,235,0.88);
+      border-color: rgba(92,69,42,0.2);
     }
     h1 {
       margin: 0 0 8px;
@@ -94,6 +187,34 @@
       margin-top: 10px;
       justify-content: space-between;
     }
+    .settings-icon-btn {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      height: 44px;
+      padding: 0 14px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 800;
+      z-index: 90;
+      background: rgba(255,255,255,0.94);
+      border: 1px solid rgba(15,23,42,0.22);
+      box-shadow: 0 8px 22px rgba(15,23,42,0.16);
+    }
+    .settings-icon-btn .gear {
+      font-size: 18px;
+      line-height: 1;
+    }
+    body.theme-glass .settings-icon-btn {
+      background: linear-gradient(150deg, rgba(255,255,255,0.72), rgba(255,255,255,0.34));
+      border-color: rgba(255,255,255,0.68);
+      backdrop-filter: blur(12px) saturate(150%);
+      -webkit-backdrop-filter: blur(12px) saturate(150%);
+    }
     .auth-chip {
       font-size: 12px;
       padding: 6px 10px;
@@ -101,6 +222,27 @@
       border: 1px solid rgba(15,23,42,0.14);
       background: #fff;
       color: #334155;
+    }
+    .big-elo {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(14,165,233,0.14), rgba(249,115,22,0.12));
+      border: 1px solid rgba(14,165,233,0.28);
+    }
+    .big-elo-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .big-elo-value {
+      margin-top: 2px;
+      font-size: clamp(24px, 4.8vw, 42px);
+      font-weight: 800;
+      line-height: 1;
+      color: #0f172a;
     }
     input[type="text"] {
       background: var(--card);
@@ -153,10 +295,11 @@
       grid-template-columns: repeat(8, 1fr);
       grid-template-rows: repeat(8, minmax(0, 1fr));
       aspect-ratio: 1;
+      position: relative;
       border-radius: 14px;
       overflow: hidden;
       border: 2px solid rgba(15,23,42,0.16);
-      max-width: 640px;
+      max-width: var(--board-max);
       margin: 10px auto 0;
     }
     .square {
@@ -187,6 +330,17 @@
     .square.light { background: var(--board-light); }
     .square.dark { background: var(--board-dark); }
     .square.selected { background: var(--sel) !important; }
+    .square.premove-from {
+      box-shadow: inset 0 0 0 3px rgba(249, 115, 22, 0.78);
+    }
+    .square.premove-to::after {
+      content: "";
+      position: absolute;
+      inset: 20%;
+      border-radius: 999px;
+      border: 3px dashed rgba(249, 115, 22, 0.85);
+      pointer-events: none;
+    }
     .square.move { background: unset !important; }
     .move-dot {
       width: 18%;
@@ -221,20 +375,33 @@
       height: 88%;
       font-size: clamp(26px, 4.4vw, 48px);
       font-weight: 700;
-      font-family: "Noto Serif", "Times New Roman", serif;
+      font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "Apple Symbols", "Noto Serif", "Times New Roman", serif;
     }
     .piece.white {
-      color: #ffffff;
-      -webkit-text-stroke: 0;
+      color: #f8fafc;
+      -webkit-text-stroke: 1px rgba(15,23,42,0.78);
       text-shadow:
-        0 1px 0 rgba(15,23,42,0.55),
-        0 0 2px rgba(15,23,42,0.45),
-        0 0 6px rgba(15,23,42,0.25);
+        0 1px 0 rgba(15,23,42,0.58),
+        0 0 2px rgba(15,23,42,0.42),
+        0 0 6px rgba(15,23,42,0.2);
     }
     .piece.black {
-      color: #000000;
+      color: #111827;
       -webkit-text-stroke: 0 transparent;
-      text-shadow: none;
+      text-shadow:
+        0 1px 0 rgba(248,250,252,0.28),
+        0 0 2px rgba(15,23,42,0.35);
+    }
+    .piece.ghost {
+      position: absolute;
+      z-index: 8;
+      width: auto;
+      height: auto;
+      line-height: 1;
+      transform: translate(-50%, -50%);
+      transition: left 180ms ease, top 180ms ease;
+      will-change: left, top;
+      pointer-events: none;
     }
     .info-grid {
       display: grid;
@@ -251,6 +418,12 @@
       background: rgba(15,23,42,0.04);
       border: 1px solid rgba(15,23,42,0.1);
       font-size: 13px;
+    }
+    .pill-elo {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--muted);
     }
     .log,
     .chat-log {
@@ -275,6 +448,75 @@
       border-radius: 10px;
       padding: 7px 10px;
       line-height: 1.3;
+    }
+    .history-list {
+      margin-top: 8px;
+      max-height: 190px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+    }
+    .history-item {
+      border: 1px solid rgba(15,23,42,0.12);
+      background: rgba(15,23,42,0.04);
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: grid;
+      gap: 4px;
+    }
+    .history-item-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .history-item-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .replay-board {
+      max-width: 360px;
+      margin-top: 10px;
+      pointer-events: none;
+    }
+    .replay-controls {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .replay-step {
+      font-size: 12px;
+      color: var(--muted);
+      min-width: 70px;
+    }
+    .history-list {
+      margin-top: 10px;
+      max-height: 220px;
+      overflow: auto;
+      display: grid;
+      gap: 8px;
+    }
+    .history-item {
+      border: 1px solid rgba(15,23,42,0.12);
+      background: rgba(15,23,42,0.03);
+      border-radius: 10px;
+      padding: 8px 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .history-meta {
+      font-size: 12px;
+      color: var(--muted);
     }
     .chat-meta {
       color: var(--muted);
@@ -309,6 +551,10 @@
       flex-wrap: wrap;
       align-items: center;
       margin-top: 8px;
+    }
+    .dev-row input[type="text"] {
+      min-width: 200px;
+      flex: 1;
     }
     .divider {
       height: 1px;
@@ -445,6 +691,164 @@
       color: #0f172a;
       word-break: break-word;
     }
+    .intro-elo {
+      font-size: 14px;
+      font-weight: 700;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .ban-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: grid;
+      place-items: center;
+      background: rgba(15, 23, 42, 0.62);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    .ban-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .ban-card {
+      width: min(92vw, 500px);
+      border-radius: 16px;
+      padding: 22px;
+      text-align: center;
+      background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(248,250,252,0.99));
+      border: 1px solid rgba(239,68,68,0.34);
+      box-shadow: 0 24px 44px rgba(15,23,42,0.36);
+    }
+    .ban-title {
+      margin: 0 0 10px;
+      color: #ef4444;
+      font-size: clamp(28px, 5vw, 46px);
+      font-weight: 800;
+    }
+    .toast-stack {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 80;
+      display: grid;
+      gap: 8px;
+      max-width: min(92vw, 390px);
+      pointer-events: none;
+    }
+    .toast {
+      background: rgba(15,23,42,0.92);
+      color: #e2e8f0;
+      border: 1px solid rgba(148,163,184,0.35);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      box-shadow: 0 10px 22px rgba(15,23,42,0.28);
+      animation: toast-in 180ms ease;
+    }
+    .toast.ok { border-color: rgba(52,211,153,0.55); }
+    .toast.error { border-color: rgba(248,113,113,0.62); }
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 85;
+      display: grid;
+      place-items: center;
+      background: rgba(15,23,42,0.46);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    .settings-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .settings-card {
+      width: min(92vw, 520px);
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid rgba(15,23,42,0.16);
+      box-shadow: 0 20px 40px rgba(15,23,42,0.3);
+      padding: 16px;
+    }
+    .settings-title {
+      font-size: 22px;
+      margin: 0 0 10px;
+      font-weight: 800;
+    }
+    .settings-grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr;
+    }
+    .settings-grid label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+    }
+    .settings-grid select {
+      width: 100%;
+      margin-top: 4px;
+      padding: 10px 11px;
+      border-radius: 10px;
+      border: 1px solid rgba(15,23,42,0.2);
+      background: #f8fafc;
+      color: #0f172a;
+      font-size: 14px;
+    }
+    body.motion-min .overlay,
+    body.motion-min .overlay-card,
+    body.motion-min button,
+    body.motion-min .square,
+    body.motion-min .status,
+    body.motion-min .piece.ghost {
+      transition: none !important;
+      animation: none !important;
+    }
+    .replay-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 86;
+      display: grid;
+      place-items: center;
+      background: rgba(15,23,42,0.62);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+    .replay-overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .replay-card {
+      width: min(94vw, 760px);
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid rgba(15,23,42,0.18);
+      box-shadow: 0 20px 40px rgba(15,23,42,0.35);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .replay-board {
+      width: min(86vw, var(--replay-board-max));
+      justify-self: center;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, minmax(0, 1fr));
+      aspect-ratio: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid rgba(15,23,42,0.2);
+    }
+    .replay-controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
     .start-menu {
       margin-top: 12px;
       display: grid;
@@ -514,6 +918,14 @@
       from { transform: scale(0.94); opacity: 0; }
       to { transform: scale(1); opacity: 1; }
     }
+    @keyframes toast-in {
+      from { transform: translateY(8px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes liquid-float {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(-8px, 10px, 0) scale(1.04); }
+    }
     @media (prefers-reduced-motion: reduce) {
       .overlay,
       .overlay-card,
@@ -530,6 +942,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+  <button id="settingsBtn" class="ghost settings-icon-btn" type="button" aria-label="Settings">
+    <span class="gear">⚙</span>
+    <span>Settings</span>
+  </button>
   <div id="globalLoader" class="app-loader">
     <div class="loader-card">
       <div class="loader-spinner"></div>
@@ -537,9 +953,13 @@
     </div>
   </div>
   <div class="app">
-    <section class="panel">
+    <section id="matchmaking" class="panel">
       <h1>ChessMateX</h1>
       <p class="muted">Name eingeben, Matchmaking starten, Gegner finden und direkt online spielen.</p>
+      <div class="big-elo">
+        <div id="bigEloLabel" class="big-elo-label">Dein Elo</div>
+        <div id="startEloBig" class="big-elo-value">-</div>
+      </div>
       <div class="start-menu">
         <button class="mode-choice active" data-mode="quick">Schnelles Matchmaking</button>
         <button class="mode-choice" data-mode="ai">Gegen KI</button>
@@ -551,6 +971,7 @@
         <div class="row">
           <button id="googleLoginBtn" class="ghost" type="button">Mit Google anmelden</button>
           <button id="logoutBtn" class="ghost hidden" type="button">Abmelden</button>
+          <button id="updateLogsBtn" class="ghost" type="button" onclick="window.location.href='/updatelog.html'">Update Logs</button>
         </div>
       </div>
 
@@ -570,16 +991,17 @@
       <div id="board" class="board" aria-label="Schachbrett"></div>
 
       <div class="info-grid">
-        <div class="pill">Du: <span id="youName">-</span> (<span id="youColor">-</span>)</div>
-        <div class="pill">Gegner: <span id="oppName">-</span></div>
-        <div class="pill">Zug: <span id="turnInfo">-</span></div>
-        <div class="pill">Match: <span id="matchId">-</span></div>
-        <div class="pill">Status: <span id="gameState">Bereit</span></div>
+        <div class="pill"><span id="labelYou">Du:</span> <span id="youName">-</span> (<span id="youColor">-</span>)<span class="pill-elo"><span id="labelEloYou">Elo:</span> <span id="youElo">-</span></span></div>
+        <div class="pill"><span id="labelOpponent">Gegner:</span> <span id="oppName">-</span><span class="pill-elo"><span id="labelEloOpponent">Elo:</span> <span id="oppElo">-</span></span></div>
+        <div class="pill"><span id="labelTurn">Zug:</span> <span id="turnInfo">-</span></div>
+        <div class="pill"><span id="labelMatch">Match:</span> <span id="matchId">-</span></div>
+        <div class="pill"><span id="labelState">Status:</span> <span id="gameState">Bereit</span></div>
+        <div class="pill"><span id="labelElo">Elo:</span> <span id="eloInfo">-</span></div>
       </div>
     </section>
 
     <section class="panel">
-      <h1>Spielraum</h1>
+      <h1 id="roomTitle">Spielraum</h1>
       <div id="log" class="log"></div>
 
       <div class="row" style="margin-top: 12px;">
@@ -589,23 +1011,28 @@
 
       <div class="divider"></div>
 
-      <h2>Chat</h2>
+      <h2 id="chatTitle">Chat</h2>
       <div id="chatLog" class="chat-log"></div>
       <div class="row" style="margin-top: 8px;">
         <input id="chatInput" type="text" placeholder="Nachricht schreiben" maxlength="160" />
         <button id="sendChatBtn" class="secondary" disabled>Senden</button>
       </div>
 
-      <div class="footer">
+      <div class="divider"></div>
+
+      <h2 id="historyTitle">Spielverläufe</h2>
+      <div id="historyList" class="history-list"></div>
+
+      <div id="cleanupFooter" class="footer">
         Match-Cleanup: verwaiste Partien werden nach Ende automatisch geloescht. Queue-Eintraege laufen ohne Heartbeat aus.
       </div>
 
       <details>
-        <summary>Empfohlene Firebase Realtime Database Rules</summary>
+        <summary id="rulesSummary">Empfohlene Firebase Realtime Database Rules</summary>
         <pre id="rulesBox"></pre>
       </details>
       <details id="devToolsPanel" class="hidden">
-        <summary>Dev Tools (Cheat GUI)</summary>
+        <summary id="devSummary">Dev Tools (Cheat GUI)</summary>
         <div class="dev-grid">
           <input id="devFrom" type="text" placeholder="von (z. B. e2)" maxlength="2" />
           <input id="devTo" type="text" placeholder="nach (z. B. e8)" maxlength="2" />
@@ -625,6 +1052,22 @@
             <input id="devSyncMatch" type="checkbox" />
             Online-Match mit aktualisieren
           </label>
+        </div>
+        <div class="dev-row">
+          <input id="adminBanSeconds" type="text" placeholder="Ban Sekunden (z. B. 30)" />
+          <input id="adminBanReason" type="text" placeholder="Ban Grund (Reason)" maxlength="120" />
+          <button id="adminBanBtn" class="ghost" type="button">Gegner bannen</button>
+          <button id="adminUnbanBtn" class="ghost" type="button">Ban aufheben</button>
+        </div>
+        <div class="dev-row">
+          <button id="adminWinBtn" class="ghost" type="button">Erzwinge Sieg</button>
+          <button id="adminLossBtn" class="ghost" type="button">Erzwinge Niederlage</button>
+          <button id="adminDrawBtn" class="ghost" type="button">Erzwinge Remis</button>
+        </div>
+        <div class="dev-row">
+          <button id="adminFlipTurnBtn" class="ghost" type="button">Zugrecht wechseln</button>
+          <button id="adminClearChatBtn" class="ghost" type="button">Chat leeren</button>
+          <button id="adminPawnWipeBtn" class="ghost" type="button">Bauern killen alles</button>
         </div>
       </details>
     </section>
@@ -652,10 +1095,110 @@
   </div>
   <div id="introOverlay" class="intro-overlay">
     <div class="intro-card">
-      <div class="muted">Match gefunden</div>
+      <div id="introFoundText" class="muted">Match gefunden</div>
       <div id="introYou" class="intro-name">Du</div>
+      <div id="introYouElo" class="intro-elo">Elo: -</div>
       <div class="intro-vs">VS</div>
       <div id="introOpp" class="intro-name">Gegner</div>
+      <div id="introOppElo" class="intro-elo">Elo: -</div>
+    </div>
+  </div>
+  <div id="banOverlay" class="ban-overlay">
+    <div class="ban-card">
+      <p id="banTitleText" class="ban-title">You got Banned</p>
+      <p class="muted" style="margin: 0;"><span id="banReasonLabel">Reason:</span> <span id="banReasonText">Einfach mein Freund..</span></p>
+      <div class="row" style="justify-content:center; margin-top:14px;">
+        <button id="banCloseBtn" class="ghost" type="button">Verstanden</button>
+      </div>
+    </div>
+  </div>
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+  <div id="replayOverlay" class="replay-overlay">
+    <div class="replay-card">
+      <div id="replayTitle" style="font-size:22px; font-weight:800;">Spielwiedergabe</div>
+      <div id="replayMeta" class="muted"></div>
+      <div id="replayBoard" class="replay-board"></div>
+      <div class="replay-controls">
+        <button id="replayPrevBtn" class="ghost" type="button">◀</button>
+        <span id="replayMoveLabel" class="muted">Zug 0</span>
+        <button id="replayNextBtn" class="ghost" type="button">▶</button>
+      </div>
+      <div class="row" style="justify-content:flex-end;">
+        <button id="replayCloseBtn" class="ghost" type="button">Schließen</button>
+      </div>
+    </div>
+  </div>
+  <div id="settingsOverlay" class="settings-overlay">
+    <div class="settings-card">
+      <p class="settings-title">Settings</p>
+      <div class="settings-grid">
+        <label>Sprache
+          <select id="languageSelect">
+            <option value="de">Deutsch</option>
+            <option value="en">English</option>
+            <option value="tr">Turkce</option>
+          </select>
+        </label>
+        <label>Design
+          <select id="designSelect">
+            <option value="normal">Normal</option>
+            <option value="glass">Glas</option>
+            <option value="classic">Klassisch</option>
+          </select>
+        </label>
+        <label>Layout
+          <select id="layoutSelect">
+            <option value="normal">Normal</option>
+            <option value="compact">Kompakt</option>
+            <option value="wide">Wide</option>
+          </select>
+        </label>
+        <label>Farbakzent
+          <select id="accentSelect">
+            <option value="orange">Orange/Cyan</option>
+            <option value="blue">Blue/Teal</option>
+            <option value="green">Green/Lime</option>
+            <option value="rose">Rose/Amber</option>
+          </select>
+        </label>
+        <label>Brettgröße
+          <select id="boardSizeSelect">
+            <option value="small">Klein</option>
+            <option value="normal">Normal</option>
+            <option value="large">Groß</option>
+          </select>
+        </label>
+        <label>Koordinaten
+          <select id="coordsSelect">
+            <option value="on">An</option>
+            <option value="off">Aus</option>
+          </select>
+        </label>
+        <label>Animationen
+          <select id="motionSelect">
+            <option value="full">Normal</option>
+            <option value="minimal">Minimal</option>
+          </select>
+        </label>
+        <label>Brettfarben
+          <select id="boardThemeSelect">
+            <option value="classic">Klassisch</option>
+            <option value="ice">Ice Blue</option>
+            <option value="forest">Forest</option>
+            <option value="mono">Monochrom</option>
+          </select>
+        </label>
+        <label>UI Größe
+          <select id="uiScaleSelect">
+            <option value="normal">Normal</option>
+            <option value="large">Groß</option>
+            <option value="xlarge">Sehr groß</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="justify-content:flex-end; margin-top:12px;">
+        <button id="settingsCloseBtn" class="ghost" type="button">Schließen</button>
+      </div>
     </div>
   </div>
 
@@ -725,9 +1268,22 @@
       joinBtn: document.getElementById("joinBtn"),
       leaveBtn: document.getElementById("leaveBtn"),
       modeChoices: Array.from(document.querySelectorAll(".mode-choice")),
+      startEloBig: document.getElementById("startEloBig"),
       authChip: document.getElementById("authChip"),
       googleLoginBtn: document.getElementById("googleLoginBtn"),
       logoutBtn: document.getElementById("logoutBtn"),
+      settingsBtn: document.getElementById("settingsBtn"),
+      settingsOverlay: document.getElementById("settingsOverlay"),
+      settingsCloseBtn: document.getElementById("settingsCloseBtn"),
+      languageSelect: document.getElementById("languageSelect"),
+      designSelect: document.getElementById("designSelect"),
+      layoutSelect: document.getElementById("layoutSelect"),
+      accentSelect: document.getElementById("accentSelect"),
+      boardSizeSelect: document.getElementById("boardSizeSelect"),
+      coordsSelect: document.getElementById("coordsSelect"),
+      motionSelect: document.getElementById("motionSelect"),
+      boardThemeSelect: document.getElementById("boardThemeSelect"),
+      uiScaleSelect: document.getElementById("uiScaleSelect"),
       devToolsPanel: document.getElementById("devToolsPanel"),
       createRoomBtn: document.getElementById("createRoomBtn"),
       roomCodeInput: document.getElementById("roomCodeInput"),
@@ -737,12 +1293,16 @@
       board: document.getElementById("board"),
       youName: document.getElementById("youName"),
       youColor: document.getElementById("youColor"),
+      youElo: document.getElementById("youElo"),
       oppName: document.getElementById("oppName"),
+      oppElo: document.getElementById("oppElo"),
       turnInfo: document.getElementById("turnInfo"),
       matchId: document.getElementById("matchId"),
       gameState: document.getElementById("gameState"),
+      eloInfo: document.getElementById("eloInfo"),
       log: document.getElementById("log"),
       chatLog: document.getElementById("chatLog"),
+      historyList: document.getElementById("historyList"),
       chatInput: document.getElementById("chatInput"),
       sendChatBtn: document.getElementById("sendChatBtn"),
       resignBtn: document.getElementById("resignBtn"),
@@ -754,17 +1314,60 @@
       devFenInput: document.getElementById("devFenInput"),
       devFenBtn: document.getElementById("devFenBtn"),
       devSyncMatch: document.getElementById("devSyncMatch"),
+      adminBanSeconds: document.getElementById("adminBanSeconds"),
+      adminBanReason: document.getElementById("adminBanReason"),
+      adminBanBtn: document.getElementById("adminBanBtn"),
+      adminUnbanBtn: document.getElementById("adminUnbanBtn"),
+      adminWinBtn: document.getElementById("adminWinBtn"),
+      adminLossBtn: document.getElementById("adminLossBtn"),
+      adminDrawBtn: document.getElementById("adminDrawBtn"),
+      adminFlipTurnBtn: document.getElementById("adminFlipTurnBtn"),
+      adminClearChatBtn: document.getElementById("adminClearChatBtn"),
+      adminPawnWipeBtn: document.getElementById("adminPawnWipeBtn"),
+      toastStack: document.getElementById("toastStack"),
       overlay: document.getElementById("resultOverlay"),
       overlayCard: document.getElementById("overlayCard"),
       overlayTitle: document.getElementById("overlayTitle"),
       overlaySubtitle: document.getElementById("overlaySubtitle"),
       overlayCloseBtn: document.getElementById("overlayCloseBtn"),
+      replayOverlay: document.getElementById("replayOverlay"),
+      replayTitle: document.getElementById("replayTitle"),
+      replayMeta: document.getElementById("replayMeta"),
+      replayBoard: document.getElementById("replayBoard"),
+      replayPrevBtn: document.getElementById("replayPrevBtn"),
+      replayNextBtn: document.getElementById("replayNextBtn"),
+      replayMoveLabel: document.getElementById("replayMoveLabel"),
+      replayCloseBtn: document.getElementById("replayCloseBtn"),
       introOverlay: document.getElementById("introOverlay"),
       introYou: document.getElementById("introYou"),
+      introYouElo: document.getElementById("introYouElo"),
       introOpp: document.getElementById("introOpp"),
+      introOppElo: document.getElementById("introOppElo"),
+      banOverlay: document.getElementById("banOverlay"),
+      banReasonText: document.getElementById("banReasonText"),
+      banCloseBtn: document.getElementById("banCloseBtn"),
       promoOverlay: document.getElementById("promoOverlay"),
       promoButtons: Array.from(document.querySelectorAll(".promo-btn")),
-      rulesBox: document.getElementById("rulesBox")
+      rulesBox: document.getElementById("rulesBox"),
+      updateLogsBtn: document.getElementById("updateLogsBtn"),
+      bigEloLabel: document.getElementById("bigEloLabel"),
+      labelYou: document.getElementById("labelYou"),
+      labelEloYou: document.getElementById("labelEloYou"),
+      labelOpponent: document.getElementById("labelOpponent"),
+      labelEloOpponent: document.getElementById("labelEloOpponent"),
+      labelTurn: document.getElementById("labelTurn"),
+      labelMatch: document.getElementById("labelMatch"),
+      labelState: document.getElementById("labelState"),
+      labelElo: document.getElementById("labelElo"),
+      roomTitle: document.getElementById("roomTitle"),
+      chatTitle: document.getElementById("chatTitle"),
+      historyTitle: document.getElementById("historyTitle"),
+      cleanupFooter: document.getElementById("cleanupFooter"),
+      rulesSummary: document.getElementById("rulesSummary"),
+      devSummary: document.getElementById("devSummary"),
+      introFoundText: document.getElementById("introFoundText"),
+      banTitleText: document.getElementById("banTitleText"),
+      banReasonLabel: document.getElementById("banReasonLabel")
     };
 
     const state = {
@@ -776,6 +1379,7 @@
       opponentUid: null,
       selected: null,
       legalMoves: [],
+      pendingPremove: null,
       game: null,
       localFen: null,
       listeners: [],
@@ -786,6 +1390,9 @@
       shownResultForMatch: null,
       shownIntroForMatch: null,
       pendingPromotion: null,
+      banUntil: 0,
+      banReason: "",
+      lastBanPopupKey: null,
       connected: true,
       selectedMode: "quick",
       mode: "idle",
@@ -798,14 +1405,48 @@
       authReady: false,
       chessReady: false,
       authMode: "firebase",
-      isAdmin: false
+      isAdmin: false,
+      isGuestUser: true,
+      hasGuestElo: false,
+      elo: 0,
+      ratingHandledMatchId: null,
+      ratingProcessing: false,
+      localStyle: { moves: 0, captures: 0, checks: 0 }
+      ,
+      gameHistory: [],
+      historyUnsub: null,
+      historySavedMatchId: null,
+      aiSessionId: null,
+      aiSessionSaved: false,
+      currentGameMoves: [],
+      replayGame: null,
+      replayMoves: [],
+      replayFens: [],
+      replayIndex: 0,
+      replayInfo: null,
+      visualSettings: {
+        language: "de",
+        design: "normal",
+        layout: "normal",
+        accent: "orange",
+        boardSize: "normal",
+        coords: "on",
+        motion: "full",
+        boardTheme: "classic",
+        uiScale: "normal"
+      }
     };
 
     const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const DEFAULT_ELO = 0;
+    const GUEST_ELO_KEY = "chessmatex_guest_elo";
+    const GUEST_GAMES_KEY = "chessmatex_guest_games";
+    const VISUAL_SETTINGS_KEY = "chessmatex_visual_settings";
+    const SUPPORTED_LANGS = ["de", "en", "tr"];
 
     const pieceMap = {
       p: "♟", r: "♜", n: "♞", b: "♝", q: "♛", k: "♚",
-      P: "♟", R: "♜", N: "♞", B: "♝", Q: "♛", K: "♚"
+      P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔"
     };
 
     function log(msg) {
@@ -815,7 +1456,7 @@
     }
 
     function setStatus(msg, tone) {
-      ui.status.textContent = msg;
+      ui.status.textContent = translateDynamicMessage(msg);
       if (!state.matchmakingAnimTimer) {
         ui.status.classList.remove("loading");
       }
@@ -825,6 +1466,855 @@
         ui.status.style.borderColor = "rgba(52,211,153,0.65)";
       } else {
         ui.status.style.borderColor = "rgba(255,255,255,0.15)";
+      }
+    }
+
+    function notify(message, kind = "") {
+      if (!ui.toastStack) return;
+      const toast = document.createElement("div");
+      toast.className = `toast ${kind}`.trim();
+      toast.textContent = message;
+      ui.toastStack.prepend(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(5px)";
+        toast.style.transition = "opacity 180ms ease, transform 180ms ease";
+        setTimeout(() => toast.remove(), 190);
+      }, 2600);
+    }
+
+    function showBanPopup(reason) {
+      ui.banReasonText.textContent = reason || "Einfach mein Freund..";
+      ui.banOverlay.classList.add("show");
+    }
+
+    function hideBanPopup() {
+      ui.banOverlay.classList.remove("show");
+    }
+
+    const ACCENT_PRESETS = {
+      orange: { accent: "#f97316", accent2: "#0ea5e9" },
+      blue: { accent: "#3b82f6", accent2: "#14b8a6" },
+      green: { accent: "#22c55e", accent2: "#84cc16" },
+      rose: { accent: "#f43f5e", accent2: "#f59e0b" }
+    };
+    const BOARD_THEME_PRESETS = {
+      classic: { light: "#f0d9b5", dark: "#b58863" },
+      ice: { light: "#dbeafe", dark: "#60a5fa" },
+      forest: { light: "#dcfce7", dark: "#4d7c0f" },
+      mono: { light: "#e5e7eb", dark: "#6b7280" }
+    };
+    const I18N = {
+      de: {
+        settings: "Settings",
+        loading: "ChessMateX wird geladen...",
+        heroText: "Name eingeben, Matchmaking starten, Gegner finden und direkt online spielen.",
+        yourElo: "Dein Elo",
+        modeQuick: "Schnelles Matchmaking",
+        modeAi: "Gegen KI",
+        modeCreate: "Raum erstellen",
+        modeJoin: "Raum beitreten",
+        guestMode: "Gastmodus",
+        loginGoogle: "Mit Google anmelden",
+        logout: "Abmelden",
+        updateLogs: "Update Logs",
+        yourName: "Dein Name",
+        cancel: "Abbrechen",
+        startMatchmaking: "Matchmaking starten",
+        joinRoom: "Raum beitreten",
+        startAi: "Gegen KI starten",
+        roomCode: "Raum-Code",
+        boardLabel: "Schachbrett",
+        you: "Du:",
+        opponent: "Gegner:",
+        turn: "Zug:",
+        match: "Match:",
+        status: "Status:",
+        elo: "Elo:",
+        ready: "Bereit",
+        running: "Laufend",
+        finished: "Beendet",
+        abandoned: "Aufgegeben",
+        unknown: "Unbekannt",
+        room: "Spielraum",
+        resign: "Aufgeben",
+        resetGame: "Neues Spiel (gleiche Gegner)",
+        chat: "Chat",
+        history: "Spielverläufe",
+        chatPlaceholder: "Nachricht schreiben",
+        send: "Senden",
+        cleanupFooter: "Match-Cleanup: verwaiste Partien werden nach Ende automatisch geloescht. Queue-Eintraege laufen ohne Heartbeat aus.",
+        rulesSummary: "Empfohlene Firebase Realtime Database Rules",
+        devSummary: "Dev Tools (Cheat GUI)",
+        gameOver: "Spiel beendet",
+        continue: "Weiter",
+        promoteTo: "Bauer umwandeln in:",
+        queen: "Dame",
+        rook: "Turm",
+        bishop: "Laeufer",
+        knight: "Pferd",
+        matchFound: "Match gefunden",
+        bannedTitle: "You got Banned",
+        reason: "Reason:",
+        understood: "Verstanden",
+        replay: "Spielwiedergabe",
+        close: "Schliessen",
+        language: "Sprache",
+        design: "Design",
+        layout: "Layout",
+        accent: "Farbakzent",
+        boardSize: "Brettgroesse",
+        coordinates: "Koordinaten",
+        motion: "Animationen",
+        boardColors: "Brettfarben",
+        uiSize: "UI Groesse",
+        modeNormal: "Normal",
+        modeGlass: "Glas",
+        modeClassic: "Klassisch",
+        compact: "Kompakt",
+        wide: "Wide",
+        small: "Klein",
+        large: "Gross",
+        veryLarge: "Sehr gross",
+        on: "An",
+        off: "Aus",
+        minimal: "Minimal",
+        viewReplay: "Wiedergabe",
+        noSavedGames: "Noch keine gespeicherten Spiele.",
+        noMessages: "Noch keine Nachrichten.",
+        moveLabel: "Zug",
+        white: "Weiss",
+        black: "Schwarz",
+        draw: "Remis",
+        win: "Sieg",
+        loss: "Niederlage",
+        premoveQueued: "Vormove gespeichert.",
+        premoveCanceled: "Vormove abgebrochen."
+      },
+      en: {
+        settings: "Settings",
+        loading: "ChessMateX is loading...",
+        heroText: "Enter your name, start matchmaking, find an opponent, and play online instantly.",
+        yourElo: "Your Elo",
+        modeQuick: "Quick Matchmaking",
+        modeAi: "Play vs AI",
+        modeCreate: "Create Room",
+        modeJoin: "Join Room",
+        guestMode: "Guest Mode",
+        loginGoogle: "Sign in with Google",
+        logout: "Sign out",
+        updateLogs: "Update Logs",
+        yourName: "Your Name",
+        cancel: "Cancel",
+        startMatchmaking: "Start Matchmaking",
+        joinRoom: "Join Room",
+        startAi: "Start vs AI",
+        roomCode: "Room Code",
+        boardLabel: "Chessboard",
+        you: "You:",
+        opponent: "Opponent:",
+        turn: "Turn:",
+        match: "Match:",
+        status: "Status:",
+        elo: "Elo:",
+        ready: "Ready",
+        running: "Running",
+        finished: "Finished",
+        abandoned: "Abandoned",
+        unknown: "Unknown",
+        room: "Game Room",
+        resign: "Resign",
+        resetGame: "New Game (same opponent)",
+        chat: "Chat",
+        history: "Game History",
+        chatPlaceholder: "Type a message",
+        send: "Send",
+        cleanupFooter: "Match cleanup: abandoned games are deleted automatically after ending. Queue entries expire without heartbeat.",
+        rulesSummary: "Recommended Firebase Realtime Database Rules",
+        devSummary: "Dev Tools (Cheat GUI)",
+        gameOver: "Game Over",
+        continue: "Continue",
+        promoteTo: "Promote pawn to:",
+        queen: "Queen",
+        rook: "Rook",
+        bishop: "Bishop",
+        knight: "Knight",
+        matchFound: "Match found",
+        bannedTitle: "You got Banned",
+        reason: "Reason:",
+        understood: "Understood",
+        replay: "Replay",
+        close: "Close",
+        language: "Language",
+        design: "Design",
+        layout: "Layout",
+        accent: "Color Accent",
+        boardSize: "Board Size",
+        coordinates: "Coordinates",
+        motion: "Animations",
+        boardColors: "Board Colors",
+        uiSize: "UI Size",
+        modeNormal: "Normal",
+        modeGlass: "Glass",
+        modeClassic: "Classic",
+        compact: "Compact",
+        wide: "Wide",
+        small: "Small",
+        large: "Large",
+        veryLarge: "Very Large",
+        on: "On",
+        off: "Off",
+        minimal: "Minimal",
+        viewReplay: "Replay",
+        noSavedGames: "No saved games yet.",
+        noMessages: "No messages yet.",
+        moveLabel: "Move",
+        white: "White",
+        black: "Black",
+        draw: "Draw",
+        win: "Win",
+        loss: "Loss",
+        premoveQueued: "Premove queued.",
+        premoveCanceled: "Premove canceled."
+      },
+      tr: {
+        settings: "Ayarlar",
+        loading: "ChessMateX yukleniyor...",
+        heroText: "Adini gir, eslestirmeyi baslat, rakip bul ve hemen cevrim ici oyna.",
+        yourElo: "Elo Puanin",
+        modeQuick: "Hizli Eslesme",
+        modeAi: "YZ'ye Karsi Oyna",
+        modeCreate: "Oda Olustur",
+        modeJoin: "Odaya Katil",
+        guestMode: "Misafir Modu",
+        loginGoogle: "Google ile giris yap",
+        logout: "Cikis yap",
+        updateLogs: "Guncelleme Kayitlari",
+        yourName: "Adin",
+        cancel: "Iptal",
+        startMatchmaking: "Eslesmeyi Baslat",
+        joinRoom: "Odaya Katil",
+        startAi: "YZ'ye Karsi Baslat",
+        roomCode: "Oda Kodu",
+        boardLabel: "Satranc tahtasi",
+        you: "Sen:",
+        opponent: "Rakip:",
+        turn: "Sira:",
+        match: "Mac:",
+        status: "Durum:",
+        elo: "Elo:",
+        ready: "Hazir",
+        running: "Devam ediyor",
+        finished: "Bitti",
+        abandoned: "Terk edildi",
+        unknown: "Bilinmiyor",
+        room: "Oyun Odasi",
+        resign: "Teslim Ol",
+        resetGame: "Yeni Oyun (ayni rakip)",
+        chat: "Sohbet",
+        history: "Oyun Gecmisi",
+        chatPlaceholder: "Mesaj yaz",
+        send: "Gonder",
+        cleanupFooter: "Mac temizligi: terk edilen oyunlar bittikten sonra otomatik silinir. Kuyruk kayitlari heartbeat olmadan zaman asimina ugrar.",
+        rulesSummary: "Onerilen Firebase Realtime Database Kurallari",
+        devSummary: "Gelistirici Araclari (Cheat GUI)",
+        gameOver: "Oyun Bitti",
+        continue: "Devam",
+        promoteTo: "Piyonu su tas olarak terfi ettir:",
+        queen: "Vezir",
+        rook: "Kale",
+        bishop: "Fil",
+        knight: "At",
+        matchFound: "Mac bulundu",
+        bannedTitle: "You got Banned",
+        reason: "Neden:",
+        understood: "Anladim",
+        replay: "Tekrar Oynat",
+        close: "Kapat",
+        language: "Dil",
+        design: "Tasarim",
+        layout: "Yerlesim",
+        accent: "Renk Vurgusu",
+        boardSize: "Tahta Boyutu",
+        coordinates: "Koordinatlar",
+        motion: "Animasyonlar",
+        boardColors: "Tahta Renkleri",
+        uiSize: "Arayuz Boyutu",
+        modeNormal: "Normal",
+        modeGlass: "Cam",
+        modeClassic: "Klasik",
+        compact: "Kompakt",
+        wide: "Genis",
+        small: "Kucuk",
+        large: "Buyuk",
+        veryLarge: "Cok Buyuk",
+        on: "Acik",
+        off: "Kapali",
+        minimal: "Minimal",
+        viewReplay: "Tekrar",
+        noSavedGames: "Henuz kaydedilmis oyun yok.",
+        noMessages: "Henuz mesaj yok.",
+        moveLabel: "Hamle",
+        white: "Beyaz",
+        black: "Siyah",
+        draw: "Berabere",
+        win: "Zafer",
+        loss: "Maglubiyet",
+        premoveQueued: "On hamle kaydedildi.",
+        premoveCanceled: "On hamle iptal edildi."
+      }
+    };
+
+    function t(key) {
+      const lang = state?.visualSettings?.language || "de";
+      const table = I18N[lang] || I18N.de;
+      return table[key] || I18N.de[key] || key;
+    }
+
+    function translateDynamicMessage(message) {
+      if ((state?.visualSettings?.language || "de") === "de" || !message) return message;
+      const lang = state.visualSettings.language;
+      const exactMap = {
+        en: {
+          "Du bist am Zug.": "Your turn.",
+          "Gegner ist am Zug.": "Opponent's turn.",
+          "Spiel beendet: Remis.": "Game over: draw.",
+          "Spiel beendet: Du hast gewonnen.": "Game over: you won.",
+          "Spiel beendet: Du hast verloren.": "Game over: you lost.",
+          "KI denkt...": "AI is thinking..."
+        },
+        tr: {
+          "Du bist am Zug.": "Sira sende.",
+          "Gegner ist am Zug.": "Sira rakipte.",
+          "Spiel beendet: Remis.": "Oyun bitti: berabere.",
+          "Spiel beendet: Du hast gewonnen.": "Oyun bitti: kazandin.",
+          "Spiel beendet: Du hast verloren.": "Oyun bitti: kaybettin.",
+          "KI denkt...": "YZ dusunuyor..."
+        }
+      };
+      const exact = exactMap[lang]?.[message];
+      if (exact) return exact;
+      const banMatch = message.match(/^Du bist gebannt \((\d+)s\)\.$/);
+      if (banMatch) {
+        return lang === "en"
+          ? `You are banned (${banMatch[1]}s).`
+          : `Yasaklandin (${banMatch[1]} sn).`;
+      }
+      const chatBanMatch = message.match(/^Chat gesperrt \((\d+)s\)\.$/);
+      if (chatBanMatch) {
+        return lang === "en"
+          ? `Chat locked (${chatBanMatch[1]}s).`
+          : `Sohbet kilitli (${chatBanMatch[1]} sn).`;
+      }
+      return message;
+    }
+
+    function applyLanguageToUI() {
+      const lang = SUPPORTED_LANGS.includes(state.visualSettings.language) ? state.visualSettings.language : "de";
+      document.documentElement.lang = lang;
+      const matchmakingSub = document.querySelector("#matchmaking .muted");
+      if (matchmakingSub) matchmakingSub.textContent = t("heroText");
+      const settingsBtnLabel = ui.settingsBtn?.querySelector("span:last-child");
+      if (settingsBtnLabel) settingsBtnLabel.textContent = t("settings");
+      if (ui.settingsBtn) ui.settingsBtn.setAttribute("aria-label", t("settings"));
+      if (ui.globalLoader?.querySelector(".loader-card div:last-child")) {
+        ui.globalLoader.querySelector(".loader-card div:last-child").textContent = t("loading");
+      }
+      if (ui.bigEloLabel) ui.bigEloLabel.textContent = t("yourElo");
+      if (ui.modeChoices?.length) {
+        ui.modeChoices.forEach((btn) => {
+          if (btn.dataset.mode === "quick") btn.textContent = t("modeQuick");
+          if (btn.dataset.mode === "ai") btn.textContent = t("modeAi");
+          if (btn.dataset.mode === "create") btn.textContent = t("modeCreate");
+          if (btn.dataset.mode === "join") btn.textContent = t("modeJoin");
+        });
+      }
+      if (ui.authChip && !state.uid) ui.authChip.textContent = t("guestMode");
+      if (ui.googleLoginBtn) ui.googleLoginBtn.textContent = t("loginGoogle");
+      if (ui.logoutBtn) ui.logoutBtn.textContent = t("logout");
+      if (ui.updateLogsBtn) ui.updateLogsBtn.textContent = t("updateLogs");
+      if (ui.nameInput) ui.nameInput.placeholder = t("yourName");
+      if (ui.leaveBtn) ui.leaveBtn.textContent = t("cancel");
+      if (ui.joinBtn) ui.joinBtn.textContent = t("startMatchmaking");
+      if (ui.createRoomBtn) ui.createRoomBtn.textContent = t("modeCreate");
+      if (ui.roomCodeInput) ui.roomCodeInput.placeholder = t("roomCode");
+      if (ui.joinRoomBtn) ui.joinRoomBtn.textContent = t("joinRoom");
+      if (ui.aiBtn) ui.aiBtn.textContent = t("startAi");
+      if (ui.board) ui.board.setAttribute("aria-label", t("boardLabel"));
+      if (ui.labelYou) ui.labelYou.textContent = t("you");
+      if (ui.labelEloYou) ui.labelEloYou.textContent = t("elo");
+      if (ui.labelOpponent) ui.labelOpponent.textContent = t("opponent");
+      if (ui.labelEloOpponent) ui.labelEloOpponent.textContent = t("elo");
+      if (ui.labelTurn) ui.labelTurn.textContent = t("turn");
+      if (ui.labelMatch) ui.labelMatch.textContent = t("match");
+      if (ui.labelState) ui.labelState.textContent = t("status");
+      if (ui.labelElo) ui.labelElo.textContent = t("elo");
+      if (ui.roomTitle) ui.roomTitle.textContent = t("room");
+      if (ui.resignBtn) ui.resignBtn.textContent = t("resign");
+      if (ui.resetBtn) ui.resetBtn.textContent = t("resetGame");
+      if (ui.chatTitle) ui.chatTitle.textContent = t("chat");
+      if (ui.historyTitle) ui.historyTitle.textContent = t("history");
+      if (ui.chatInput) ui.chatInput.placeholder = t("chatPlaceholder");
+      if (ui.sendChatBtn) ui.sendChatBtn.textContent = t("send");
+      if (ui.cleanupFooter) ui.cleanupFooter.textContent = t("cleanupFooter");
+      if (ui.rulesSummary) ui.rulesSummary.textContent = t("rulesSummary");
+      if (ui.devSummary) ui.devSummary.textContent = t("devSummary");
+      if (ui.overlayTitle && !ui.overlay.classList.contains("show")) ui.overlayTitle.textContent = t("gameOver");
+      if (ui.overlayCloseBtn) ui.overlayCloseBtn.textContent = t("continue");
+      const promoTitle = document.querySelector(".promo-title");
+      if (promoTitle) promoTitle.textContent = t("promoteTo");
+      if (ui.promoButtons?.length === 4) {
+        ui.promoButtons[0].textContent = t("queen");
+        ui.promoButtons[1].textContent = t("rook");
+        ui.promoButtons[2].textContent = t("bishop");
+        ui.promoButtons[3].textContent = t("knight");
+      }
+      if (ui.introFoundText) ui.introFoundText.textContent = t("matchFound");
+      if (ui.banTitleText) ui.banTitleText.textContent = t("bannedTitle");
+      if (ui.banReasonLabel) ui.banReasonLabel.textContent = t("reason");
+      if (ui.banCloseBtn) ui.banCloseBtn.textContent = t("understood");
+      if (ui.replayTitle && !state.replayInfo) ui.replayTitle.textContent = t("replay");
+      if (ui.replayMoveLabel && !state.replayGame) ui.replayMoveLabel.textContent = `${t("moveLabel")} 0`;
+      if (ui.replayCloseBtn) ui.replayCloseBtn.textContent = t("close");
+      if (ui.settingsCloseBtn) ui.settingsCloseBtn.textContent = t("close");
+      const settingsTitle = document.querySelector(".settings-title");
+      if (settingsTitle) settingsTitle.textContent = t("settings");
+
+      const labelNodes = ui.settingsOverlay.querySelectorAll(".settings-grid > label");
+      if (labelNodes[0]) labelNodes[0].childNodes[0].textContent = `${t("language")} `;
+      if (labelNodes[1]) labelNodes[1].childNodes[0].textContent = `${t("design")} `;
+      if (labelNodes[2]) labelNodes[2].childNodes[0].textContent = `${t("layout")} `;
+      if (labelNodes[3]) labelNodes[3].childNodes[0].textContent = `${t("accent")} `;
+      if (labelNodes[4]) labelNodes[4].childNodes[0].textContent = `${t("boardSize")} `;
+      if (labelNodes[5]) labelNodes[5].childNodes[0].textContent = `${t("coordinates")} `;
+      if (labelNodes[6]) labelNodes[6].childNodes[0].textContent = `${t("motion")} `;
+      if (labelNodes[7]) labelNodes[7].childNodes[0].textContent = `${t("boardColors")} `;
+      if (labelNodes[8]) labelNodes[8].childNodes[0].textContent = `${t("uiSize")} `;
+
+      const setOptionText = (select, value, text) => {
+        const opt = select?.querySelector(`option[value="${value}"]`);
+        if (opt) opt.textContent = text;
+      };
+      setOptionText(ui.designSelect, "normal", t("modeNormal"));
+      setOptionText(ui.designSelect, "glass", t("modeGlass"));
+      setOptionText(ui.designSelect, "classic", t("modeClassic"));
+      setOptionText(ui.layoutSelect, "normal", t("modeNormal"));
+      setOptionText(ui.layoutSelect, "compact", t("compact"));
+      setOptionText(ui.layoutSelect, "wide", t("wide"));
+      setOptionText(ui.boardSizeSelect, "small", t("small"));
+      setOptionText(ui.boardSizeSelect, "normal", t("modeNormal"));
+      setOptionText(ui.boardSizeSelect, "large", t("large"));
+      setOptionText(ui.coordsSelect, "on", t("on"));
+      setOptionText(ui.coordsSelect, "off", t("off"));
+      setOptionText(ui.motionSelect, "full", t("modeNormal"));
+      setOptionText(ui.motionSelect, "minimal", t("minimal"));
+      setOptionText(ui.boardThemeSelect, "classic", t("modeClassic"));
+      setOptionText(ui.uiScaleSelect, "normal", t("modeNormal"));
+      setOptionText(ui.uiScaleSelect, "large", t("large"));
+      setOptionText(ui.uiScaleSelect, "xlarge", t("veryLarge"));
+      const gameStateText = ui.gameState?.textContent?.trim();
+      if (gameStateText === "Bereit" || gameStateText === "Ready" || gameStateText === "Hazir") {
+        ui.gameState.textContent = t("ready");
+      }
+      updateEloUI();
+      renderHistoryList();
+      renderReplayBoard();
+    }
+
+    function applyVisualSettings(settings, persist = true) {
+      const language = SUPPORTED_LANGS.includes(settings?.language) ? settings.language : "de";
+      const design = ["normal", "glass", "classic"].includes(settings?.design) ? settings.design : "normal";
+      const layout = ["normal", "compact", "wide"].includes(settings?.layout) ? settings.layout : "normal";
+      const accent = Object.prototype.hasOwnProperty.call(ACCENT_PRESETS, settings?.accent) ? settings.accent : "orange";
+      const boardSize = ["small", "normal", "large"].includes(settings?.boardSize) ? settings.boardSize : "normal";
+      const coords = settings?.coords === "off" ? "off" : "on";
+      const motion = settings?.motion === "minimal" ? "minimal" : "full";
+      const boardTheme = Object.prototype.hasOwnProperty.call(BOARD_THEME_PRESETS, settings?.boardTheme) ? settings.boardTheme : "classic";
+      const uiScale = ["normal", "large", "xlarge"].includes(settings?.uiScale) ? settings.uiScale : "normal";
+      const palette = ACCENT_PRESETS[accent];
+      const boardPalette = BOARD_THEME_PRESETS[boardTheme];
+
+      document.body.classList.remove("theme-glass", "theme-classic", "layout-compact", "layout-wide", "motion-min", "ui-scale-large", "ui-scale-xlarge");
+      if (design === "glass") document.body.classList.add("theme-glass");
+      if (design === "classic") document.body.classList.add("theme-classic");
+      if (layout === "compact") document.body.classList.add("layout-compact");
+      if (layout === "wide") document.body.classList.add("layout-wide");
+      if (motion === "minimal") document.body.classList.add("motion-min");
+      if (uiScale === "large") document.body.classList.add("ui-scale-large");
+      if (uiScale === "xlarge") document.body.classList.add("ui-scale-xlarge");
+
+      document.documentElement.style.setProperty("--accent", palette.accent);
+      document.documentElement.style.setProperty("--accent-2", palette.accent2);
+      document.documentElement.style.setProperty("--board-light", boardPalette.light);
+      document.documentElement.style.setProperty("--board-dark", boardPalette.dark);
+      const boardSizeMap = { small: "520px", normal: "640px", large: "760px" };
+      const replaySizeMap = { small: "420px", normal: "520px", large: "620px" };
+      document.documentElement.style.setProperty("--board-max", boardSizeMap[boardSize]);
+      document.documentElement.style.setProperty("--replay-board-max", replaySizeMap[boardSize]);
+
+      ui.languageSelect.value = language;
+      ui.designSelect.value = design;
+      ui.layoutSelect.value = layout;
+      ui.accentSelect.value = accent;
+      ui.boardSizeSelect.value = boardSize;
+      ui.coordsSelect.value = coords;
+      ui.motionSelect.value = motion;
+      ui.boardThemeSelect.value = boardTheme;
+      ui.uiScaleSelect.value = uiScale;
+      state.visualSettings = { language, design, layout, accent, boardSize, coords, motion, boardTheme, uiScale };
+      applyLanguageToUI();
+      if (typeof renderBoard === "function") renderBoard();
+      if (typeof renderReplayBoard === "function" && state.replayGame) renderReplayBoard();
+
+      if (persist) {
+        localStorage.setItem(VISUAL_SETTINGS_KEY, JSON.stringify({ language, design, layout, accent, boardSize, coords, motion, boardTheme, uiScale }));
+      }
+    }
+
+    function loadVisualSettings() {
+      const raw = localStorage.getItem(VISUAL_SETTINGS_KEY);
+      if (!raw) {
+        applyVisualSettings({ language: "de", design: "normal", layout: "normal", accent: "orange", boardSize: "normal", coords: "on", motion: "full", boardTheme: "classic", uiScale: "normal" }, false);
+        return;
+      }
+      try {
+        applyVisualSettings(JSON.parse(raw), false);
+      } catch (_) {
+        applyVisualSettings({ language: "de", design: "normal", layout: "normal", accent: "orange", boardSize: "normal", coords: "on", motion: "full", boardTheme: "classic", uiScale: "normal" }, false);
+      }
+    }
+
+    function openSettings() {
+      ui.settingsOverlay.classList.add("show");
+    }
+
+    function closeSettings() {
+      ui.settingsOverlay.classList.remove("show");
+    }
+
+    function formatResultText(result) {
+      if (result === "win") return t("win");
+      if (result === "loss") return t("loss");
+      return t("draw");
+    }
+
+    function buildReplayFens(item) {
+      const startFen = item?.startFen || START_FEN;
+      const moves = Array.isArray(item?.moves) ? item.moves : [];
+      const fens = [startFen];
+      if (!state.chessReady || typeof Chess === "undefined") return fens;
+      const g = new Chess();
+      if (!g.load(startFen)) return [START_FEN];
+
+      moves.forEach((m) => {
+        if (m?.fen && g.load(m.fen)) {
+          fens.push(g.fen());
+          return;
+        }
+        let ok = null;
+        if (m?.san) ok = g.move(m.san);
+        if (!ok && m?.from && m?.to) ok = g.move({ from: m.from, to: m.to, promotion: "q" });
+        if (ok) fens.push(g.fen());
+      });
+      return fens;
+    }
+
+    function renderReplayBoard() {
+      if (!state.replayGame || !ui.replayBoard) return;
+      ui.replayBoard.innerHTML = "";
+      const safeIndex = Math.max(0, Math.min(state.replayIndex, state.replayFens.length - 1));
+      state.replayIndex = safeIndex;
+      const fen = state.replayFens[safeIndex] || START_FEN;
+      state.replayGame.load(fen);
+      const board = state.replayGame.board();
+      for (let row = 0; row < 8; row += 1) {
+        for (let col = 0; col < 8; col += 1) {
+          const p = board[row][col];
+          const isLight = (row + col) % 2 === 0;
+          const sq = document.createElement("div");
+          sq.className = `square ${isLight ? "light" : "dark"}`;
+          if (p) {
+            const pieceChar = p.color === "w" ? p.type.toUpperCase() : p.type;
+            const pieceEl = document.createElement("span");
+            pieceEl.className = `piece ${p.color === "w" ? "white" : "black"}`;
+            pieceEl.textContent = pieceMap[pieceChar] || "";
+            sq.appendChild(pieceEl);
+          }
+          ui.replayBoard.appendChild(sq);
+        }
+      }
+      const total = Math.max(0, state.replayFens.length - 1);
+      ui.replayMoveLabel.textContent = `${t("moveLabel")} ${state.replayIndex}/${total}`;
+    }
+
+    function openReplay(item) {
+      if (!item || !Array.isArray(item.moves)) return;
+      if (!state.chessReady || typeof Chess === "undefined") {
+        setStatus("Wiedergabe braucht geladene Schach-Engine.", "error");
+        return;
+      }
+      state.replayGame = new Chess();
+      state.replayMoves = item.moves;
+      state.replayFens = buildReplayFens(item);
+      state.replayIndex = 0;
+      state.replayInfo = item;
+      ui.replayTitle.textContent = `${item.youName || t("you").replace(":", "")} vs ${item.opponentName || t("opponent").replace(":", "")}`;
+      ui.replayMeta.textContent = `${formatResultText(item.result)} • ${new Date(item.endedAt || Date.now()).toLocaleString()}`;
+      ui.replayOverlay.classList.add("show");
+      renderReplayBoard();
+    }
+
+    function closeReplay() {
+      ui.replayOverlay.classList.remove("show");
+      state.replayGame = null;
+      state.replayMoves = [];
+      state.replayFens = [];
+      state.replayIndex = 0;
+    }
+
+    function renderHistoryList() {
+      ui.historyList.innerHTML = "";
+      if (!state.gameHistory.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted";
+        empty.textContent = t("noSavedGames");
+        ui.historyList.appendChild(empty);
+        return;
+      }
+      state.gameHistory.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "history-item";
+        const head = document.createElement("div");
+        head.className = "history-head";
+        head.innerHTML = `<span>${item.youName || t("you").replace(":", "")} vs ${item.opponentName || t("opponent").replace(":", "")}</span><span>${formatResultText(item.result)}</span>`;
+        const meta = document.createElement("div");
+        meta.className = "history-meta";
+        meta.textContent = `${new Date(item.endedAt || Date.now()).toLocaleString()} • ${item.mode || "quick"} • ${item.moves?.length || 0} ${t("moveLabel")}`;
+        const btnRow = document.createElement("div");
+        btnRow.className = "row";
+        const replayBtn = document.createElement("button");
+        replayBtn.className = "ghost";
+        replayBtn.textContent = t("viewReplay");
+        replayBtn.addEventListener("click", () => openReplay(item));
+        btnRow.appendChild(replayBtn);
+        row.appendChild(head);
+        row.appendChild(meta);
+        row.appendChild(btnRow);
+        ui.historyList.appendChild(row);
+      });
+    }
+
+    function loadGuestHistory() {
+      try {
+        const raw = localStorage.getItem(GUEST_GAMES_KEY);
+        state.gameHistory = raw ? JSON.parse(raw) : [];
+      } catch (_) {
+        state.gameHistory = [];
+      }
+      renderHistoryList();
+    }
+
+    function stopHistoryWatcher() {
+      if (state.historyUnsub) {
+        state.historyUnsub();
+        state.historyUnsub = null;
+      }
+    }
+
+    function startHistoryWatcher() {
+      stopHistoryWatcher();
+      if (!state.uid || state.isGuestUser) {
+        loadGuestHistory();
+        return;
+      }
+      const ref = db.ref(`users/${state.uid}/games`).limitToLast(40);
+      const onVal = ref.on("value", (snap) => {
+        const val = snap.val() || {};
+        state.gameHistory = Object.entries(val)
+          .map(([id, game]) => ({ id, ...(game || {}) }))
+          .sort((a, b) => (b.endedAt || 0) - (a.endedAt || 0));
+        renderHistoryList();
+      });
+      state.historyUnsub = () => ref.off("value", onVal);
+    }
+
+    async function saveCompletedGameRecord(record) {
+      if (!record || !Array.isArray(record.moves)) return;
+      if (state.isGuestUser) {
+        loadGuestHistory();
+        const entry = { id: record.id || `guest_${Date.now()}`, ...record };
+        const merged = [entry, ...state.gameHistory].slice(0, 40);
+        state.gameHistory = merged;
+        localStorage.setItem(GUEST_GAMES_KEY, JSON.stringify(merged));
+        renderHistoryList();
+        return;
+      }
+      if (!state.uid) return;
+      const key = record.id || `g_${Date.now()}`;
+      await db.ref(`users/${state.uid}/games/${key}`).set(record);
+    }
+
+    function getOnlineResultForMe(match) {
+      if (!match?.result?.winnerUid) return "draw";
+      return match.result.winnerUid === state.uid ? "win" : "loss";
+    }
+
+    function buildOnlineGameRecord(match) {
+      const result = getOnlineResultForMe(match);
+      return {
+        id: match.id || state.matchId || `m_${Date.now()}`,
+        mode: state.mode || "quick",
+        startFen: START_FEN,
+        youUid: state.uid,
+        youName: state.name || "Du",
+        opponentUid: state.opponentUid || null,
+        opponentName: state.opponent?.name || "Gegner",
+        result,
+        endedAt: Date.now(),
+        moves: Array.isArray(match.moves) ? match.moves : []
+      };
+    }
+
+    function buildAiGameRecord(result) {
+      return {
+        id: state.aiSessionId || `ai_${Date.now()}`,
+        mode: "ai",
+        startFen: START_FEN,
+        youUid: state.uid,
+        youName: state.name || "Du",
+        opponentUid: "ai",
+        opponentName: "KI",
+        result,
+        endedAt: Date.now(),
+        moves: [...state.currentGameMoves]
+      };
+    }
+
+    async function saveOnlineHistoryOnce(match) {
+      if (!state.matchId || state.historySavedMatchId === state.matchId) return;
+      if (!(match.status === "finished" || match.status === "abandoned")) return;
+      const record = buildOnlineGameRecord(match);
+      await saveCompletedGameRecord(record);
+      state.historySavedMatchId = state.matchId;
+    }
+
+    async function saveAiHistoryOnce(result) {
+      if (!state.isAiGame || state.aiSessionSaved) return;
+      const record = buildAiGameRecord(result);
+      await saveCompletedGameRecord(record);
+      state.aiSessionSaved = true;
+    }
+
+    function clampElo(value) {
+      return Math.max(0, Math.min(3500, Math.round(value)));
+    }
+
+    function resetLocalStyleStats() {
+      state.localStyle = { moves: 0, captures: 0, checks: 0 };
+    }
+
+    function formatOwnEloText() {
+      if (state.isGuestUser) {
+        return state.hasGuestElo ? `${Math.round(state.elo)}` : "-";
+      }
+      return `${Math.round(state.elo)}`;
+    }
+
+    function formatAnyEloText(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? `${Math.round(n)}` : "-";
+    }
+
+    function updateEloUI() {
+      const ownEloText = formatOwnEloText();
+      ui.eloInfo.textContent = ownEloText;
+      ui.youElo.textContent = ownEloText;
+      ui.startEloBig.textContent = ownEloText;
+      ui.introYouElo.textContent = `${t("elo")} ${ownEloText}`;
+    }
+
+    function loadGuestElo() {
+      const raw = localStorage.getItem(GUEST_ELO_KEY);
+      const parsed = raw ? parseInt(raw, 10) : NaN;
+      state.hasGuestElo = Number.isFinite(parsed);
+      state.elo = Number.isFinite(parsed) ? clampElo(parsed) : DEFAULT_ELO;
+      updateEloUI();
+    }
+
+    function getStyleFactor(style) {
+      const moves = Math.max(1, style?.moves || 0);
+      const captures = style?.captures || 0;
+      const checks = style?.checks || 0;
+      const aggression = captures / moves;
+      const pressure = checks / moves;
+      return 1 + Math.min(0.18, aggression * 0.22 + pressure * 0.12);
+    }
+
+    function calcEloDelta(myElo, oppElo, score, mode, style) {
+      const expected = 1 / (1 + Math.pow(10, ((oppElo || DEFAULT_ELO) - myElo) / 400));
+      const baseK = mode === "ai" ? 16 : mode === "quick" ? 28 : 24;
+      const styleFactor = getStyleFactor(style);
+      const drawFactor = score === 0.5 ? 0.7 : 1;
+      const delta = baseK * (score - expected) * styleFactor * drawFactor;
+      return Math.max(-48, Math.min(48, Math.round(delta)));
+    }
+
+    async function applyEloDelta(delta, sourceText) {
+      if (!Number.isFinite(delta) || delta === 0) {
+        notify(`Elo unveraendert (${sourceText}).`, "ok");
+        return;
+      }
+      if (state.isGuestUser) {
+        state.elo = clampElo((state.elo || DEFAULT_ELO) + delta);
+        state.hasGuestElo = true;
+        localStorage.setItem(GUEST_ELO_KEY, String(state.elo));
+        updateEloUI();
+        notify(`Gast-Elo ${delta > 0 ? "+" : ""}${delta} (${sourceText})`, delta > 0 ? "ok" : "error");
+        return;
+      }
+
+      const ratingRef = db.ref(`users/${state.uid}/rating`);
+      const result = await ratingRef.transaction((current) => {
+        const start = Number.isFinite(current) ? current : (state.elo || DEFAULT_ELO);
+        return clampElo(start + delta);
+      });
+      if (result.committed) {
+        state.elo = clampElo(result.snapshot.val());
+        updateEloUI();
+        notify(`Elo ${delta > 0 ? "+" : ""}${delta} (${sourceText})`, delta > 0 ? "ok" : "error");
+      }
+    }
+
+    async function processMatchRating(match) {
+      if (!match || !state.uid || state.ratingProcessing || !state.matchId) return;
+      if (!(match.status === "finished" || match.status === "abandoned")) return;
+      if (state.ratingHandledMatchId === state.matchId) return;
+
+      state.ratingProcessing = true;
+      try {
+        let score = 0.5;
+        if (match.result?.winnerUid) {
+          score = match.result.winnerUid === state.uid ? 1 : 0;
+        }
+        const oppRating = Number(match.players?.[state.opponentUid]?.rating || DEFAULT_ELO);
+        const myStyle = match.stats?.[state.uid] || state.localStyle;
+        const delta = calcEloDelta(state.elo || DEFAULT_ELO, oppRating, score, state.mode === "idle" ? "quick" : state.mode, myStyle);
+        await applyEloDelta(delta, "Online-Match");
+        state.ratingHandledMatchId = state.matchId;
+      } catch (error) {
+        notify("Elo-Berechnung fehlgeschlagen.", "error");
+      } finally {
+        state.ratingProcessing = false;
+      }
+    }
+
+    async function processAiRating(resultScore) {
+      try {
+        const aiRating = 1450;
+        const delta = calcEloDelta(state.elo || DEFAULT_ELO, aiRating, resultScore, "ai", state.localStyle);
+        await applyEloDelta(delta, "KI-Spiel");
+      } catch (error) {
+        notify("Elo-Berechnung fehlgeschlagen.", "error");
       }
     }
 
@@ -865,14 +2355,14 @@
 
     function updateAuthChip(user) {
       if (!user) {
-        ui.authChip.textContent = "Gastmodus";
+        ui.authChip.textContent = t("guestMode");
         ui.googleLoginBtn.classList.remove("hidden");
         ui.logoutBtn.classList.add("hidden");
         return;
       }
       const isAnon = !!user.isAnonymous;
       const label = isAnon
-        ? "Gastmodus"
+        ? t("guestMode")
         : (user.email ? `Angemeldet: ${user.email}` : "Angemeldet");
       ui.authChip.textContent = label;
       ui.googleLoginBtn.classList.toggle("hidden", !isAnon);
@@ -901,7 +2391,9 @@
       if (!state.uid) state.uid = makeLocalUid();
       state.authReady = true;
       state.authMode = "guest";
+      state.isGuestUser = true;
       state.isAdmin = false;
+      loadGuestElo();
       updateAuthChip(null);
       updateAdminUI();
       setButtonsForReady();
@@ -1004,6 +2496,7 @@
         state.localFen = START_FEN;
         state.selected = null;
         state.legalMoves = [];
+        state.pendingPremove = null;
         ui.gameState.textContent = "Warte auf Schach-Engine";
         ui.turnInfo.textContent = "-";
         renderPlaceholderBoard();
@@ -1013,8 +2506,11 @@
       state.localFen = state.game.fen();
       state.selected = null;
       state.legalMoves = [];
+      state.pendingPremove = null;
       state.lastLoggedMoveCount = -1;
-      ui.gameState.textContent = "Bereit";
+      resetLocalStyleStats();
+      state.currentGameMoves = [];
+      ui.gameState.textContent = t("ready");
       ui.turnInfo.textContent = "-";
       renderBoard();
     }
@@ -1025,6 +2521,7 @@
         return;
       }
       ui.board.innerHTML = "";
+      const frag = document.createDocumentFragment();
       const files = state.color === "b"
         ? ["h", "g", "f", "e", "d", "c", "b", "a"]
         : ["a", "b", "c", "d", "e", "f", "g", "h"];
@@ -1045,14 +2542,15 @@
             squareId,
             isLight,
             piece,
-            rowIndex === ranks.length - 1,
-            colIndex === 0,
+            state.visualSettings.coords === "on" && rowIndex === ranks.length - 1,
+            state.visualSettings.coords === "on" && colIndex === 0,
             file,
             String(rank)
           );
-          ui.board.appendChild(square);
+          frag.appendChild(square);
         });
       });
+      ui.board.appendChild(frag);
     }
 
     function makeSquare(squareId, isLight, piece, showFile, showRank, fileLabel, rankLabel) {
@@ -1066,6 +2564,8 @@
         div.appendChild(pieceEl);
       }
       if (state.selected === squareId) div.classList.add("selected");
+      if (state.pendingPremove?.from === squareId) div.classList.add("premove-from");
+      if (state.pendingPremove?.to === squareId) div.classList.add("premove-to");
       if (state.legalMoves.includes(squareId)) {
         const targetPiece = state.game ? state.game.get(squareId) : null;
         const marker = document.createElement("span");
@@ -1084,8 +2584,102 @@
         rankEl.textContent = rankLabel;
         div.appendChild(rankEl);
       }
-      div.addEventListener("click", () => onSquareClick(squareId));
       return div;
+    }
+
+    function clearSelection(render = false) {
+      state.selected = null;
+      state.legalMoves = [];
+      if (render) renderBoard();
+    }
+
+    function clearPremove(showFeedback = false) {
+      state.pendingPremove = null;
+      if (showFeedback) setStatus(t("premoveCanceled"), "info");
+      renderBoard();
+    }
+    function getMovesForColor(squareId, color) {
+      if (!state.game || !squareId || !color) return [];
+      const piece = state.game.get(squareId);
+      if (!piece || piece.color !== color) return [];
+      if (state.game.turn() === color) {
+        return state.game.moves({ square: squareId, verbose: true }).map((m) => m.to);
+      }
+      if (typeof Chess === "undefined") return [];
+      try {
+        const fenParts = state.game.fen().split(" ");
+        if (fenParts.length < 2) return [];
+        fenParts[1] = color;
+        const probe = new Chess();
+        const loaded = probe.load(fenParts.join(" "));
+        if (loaded === false) return [];
+        return probe.moves({ square: squareId, verbose: true }).map((m) => m.to);
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function onBoardClick(event) {
+      const square = event.target?.closest?.(".square");
+      if (!square || !ui.board.contains(square)) {
+        if (state.selected) clearSelection(true);
+        return;
+      }
+      const squareId = square.dataset.square;
+      if (!squareId) return;
+      onSquareClick(squareId);
+    }
+    function onBoardContextMenu(event) {
+      event.preventDefault();
+      if (state.pendingPremove) {
+        clearPremove(true);
+        return;
+      }
+      if (state.selected) clearSelection(true);
+    }
+
+    function onGlobalDocumentClick(event) {
+      if (!state.selected) return;
+      const target = event.target;
+      if (target?.closest?.("#board")) return;
+      clearSelection(true);
+    }
+
+    function pieceObjToChar(pieceObj) {
+      if (!pieceObj || !pieceObj.type || !pieceObj.color) return null;
+      return pieceObj.color === "w" ? pieceObj.type.toUpperCase() : pieceObj.type;
+    }
+
+    function getSquareCenter(squareId) {
+      const squareEl = ui.board.querySelector(`[data-square="${squareId}"]`);
+      if (!squareEl) return null;
+      const boardRect = ui.board.getBoundingClientRect();
+      const squareRect = squareEl.getBoundingClientRect();
+      return {
+        x: squareRect.left - boardRect.left + squareRect.width / 2,
+        y: squareRect.top - boardRect.top + squareRect.height / 2
+      };
+    }
+
+    function animateSlideMove(from, to, pieceChar) {
+      if (!from || !to || from === to || !pieceChar || !ui.board) return;
+      const start = getSquareCenter(from);
+      const end = getSquareCenter(to);
+      if (!start || !end) return;
+
+      const ghost = document.createElement("span");
+      ghost.className = `piece ghost ${pieceChar === pieceChar.toUpperCase() ? "white" : "black"}`;
+      ghost.textContent = pieceMap[pieceChar] || "";
+      ghost.style.left = `${start.x}px`;
+      ghost.style.top = `${start.y}px`;
+      ui.board.appendChild(ghost);
+
+      requestAnimationFrame(() => {
+        ghost.style.left = `${end.x}px`;
+        ghost.style.top = `${end.y}px`;
+      });
+
+      setTimeout(() => ghost.remove(), 240);
     }
 
     function isCheckmate(game) {
@@ -1140,21 +2734,21 @@
 
     function updateGameStateLabel(match) {
       if (!match) {
-        ui.gameState.textContent = "Bereit";
+        ui.gameState.textContent = t("ready");
         return;
       }
       if (match.status === "active") {
-        ui.gameState.textContent = "Laufend";
+        ui.gameState.textContent = t("running");
       } else if (match.status === "finished") {
         if (match.result?.winnerUid) {
-          ui.gameState.textContent = "Beendet";
+          ui.gameState.textContent = t("finished");
         } else {
-          ui.gameState.textContent = "Remis";
+          ui.gameState.textContent = t("draw");
         }
       } else if (match.status === "abandoned") {
-        ui.gameState.textContent = "Aufgegeben";
+        ui.gameState.textContent = t("abandoned");
       } else {
-        ui.gameState.textContent = match.status || "Unbekannt";
+        ui.gameState.textContent = match.status || t("unknown");
       }
     }
 
@@ -1204,10 +2798,12 @@
       ui.overlayCard.className = "overlay-card";
     }
 
-    function showMatchIntro(youName, oppName) {
+    function showMatchIntro(youName, oppName, youElo, oppElo) {
       if (!state.matchId || state.shownIntroForMatch === state.matchId) return;
-      ui.introYou.textContent = youName || "Du";
-      ui.introOpp.textContent = oppName || "Gegner";
+      ui.introYou.textContent = youName || t("you").replace(":", "");
+      ui.introYouElo.textContent = `${t("elo")} ${formatAnyEloText(youElo)}`;
+      ui.introOpp.textContent = oppName || t("opponent").replace(":", "");
+      ui.introOppElo.textContent = `${t("elo")} ${formatAnyEloText(oppElo)}`;
       ui.introOverlay.classList.add("show");
       state.shownIntroForMatch = state.matchId;
       setTimeout(() => ui.introOverlay.classList.remove("show"), 1700);
@@ -1237,6 +2833,8 @@
         match.state.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         match.state.lastMoveBy = state.uid || "dev";
         match.state.lastMoveSan = label || "DEV";
+        match.state.lastMoveFrom = null;
+        match.state.lastMoveTo = null;
         match.state.moveCount = (match.state.moveCount || 0) + 1;
         match.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         if (match.status !== "active") {
@@ -1322,19 +2920,182 @@
       log("DEV: FEN gesetzt.");
     }
 
+    function requireAdminAction() {
+      if (!state.isAdmin) {
+        setStatus("Admin-Funktion: nur fuer Owner-Account.", "error");
+        return false;
+      }
+      if (!state.matchId) {
+        setStatus("Admin-Funktion: nur in einem Online-Match.", "error");
+        return false;
+      }
+      return true;
+    }
+
+    async function adminMutateMatch(mutator, successMessage) {
+      if (!requireAdminAction()) return;
+      notify("Admin-Befehl wird ausgefuehrt...", "ok");
+      const ref = db.ref(`matches/${state.matchId}`);
+      const result = await ref.transaction((match) => {
+        if (!match || !match.players || !match.players[state.uid]) return;
+        return mutator(match);
+      });
+      if (!result.committed) {
+        setStatus("Admin-Aktion nicht committed.", "error");
+        notify("Admin-Befehl fehlgeschlagen.", "error");
+        return;
+      }
+      if (successMessage) {
+        setStatus(successMessage, "ok");
+        notify(successMessage, "ok");
+      }
+    }
+
+    async function adminBanOpponent() {
+      if (!state.opponentUid) {
+        setStatus("Kein Gegner vorhanden.", "error");
+        return;
+      }
+      const seconds = parseInt((ui.adminBanSeconds.value || "").trim(), 10);
+      if (!Number.isFinite(seconds) || seconds <= 0) {
+        setStatus("Ban-Sekunden ungueltig.", "error");
+        return;
+      }
+      const reason = (ui.adminBanReason.value || "").trim();
+      if (!reason) {
+        setStatus("Bitte einen Ban-Grund eingeben.", "error");
+        return;
+      }
+      const until = Date.now() + Math.min(seconds, 86400) * 1000;
+      await adminMutateMatch((match) => {
+        match.bans = match.bans || {};
+        match.bans[state.opponentUid] = { until, reason, by: state.uid, ts: Date.now() };
+        return match;
+      }, `Gegner fuer ${seconds}s gebannt.`);
+      log(`ADMIN: Gegner gebannt (${seconds}s) - Grund: ${reason}`);
+    }
+
+    async function adminUnbanOpponent() {
+      if (!state.opponentUid) {
+        setStatus("Kein Gegner vorhanden.", "error");
+        return;
+      }
+      await adminMutateMatch((match) => {
+        if (match.bans) delete match.bans[state.opponentUid];
+        return match;
+      }, "Ban aufgehoben.");
+      log("ADMIN: Gegner-Ban aufgehoben.");
+    }
+
+    async function adminForceResult(kind) {
+      await adminMutateMatch((match) => {
+        if (!match.state) return match;
+        match.status = "finished";
+        match.cleanupAt = Date.now() + (10 * 60 * 1000);
+        if (kind === "win") {
+          match.result = { type: "admin_forced", winnerUid: state.uid, winnerName: state.name || "Admin", text: "Admin erzwang Sieg" };
+        } else if (kind === "loss") {
+          match.result = { type: "admin_forced", winnerUid: state.opponentUid || null, winnerName: state.opponent?.name || "Gegner", text: "Admin erzwang Niederlage" };
+        } else {
+          match.result = { type: "admin_forced_draw", winnerUid: null, winnerName: null, text: "Admin erzwang Remis" };
+        }
+        match.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        return match;
+      }, "Ergebnis erzwungen.");
+      log(`ADMIN: Ergebnis erzwungen (${kind}).`);
+    }
+
+    async function adminFlipTurn() {
+      await adminMutateMatch((match) => {
+        if (!match.state) return match;
+        match.state.turn = match.state.turn === "w" ? "b" : "w";
+        match.state.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        match.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        return match;
+      }, "Zugrecht gewechselt.");
+      log("ADMIN: Zugrecht gewechselt.");
+    }
+
+    async function adminClearChat() {
+      if (!requireAdminAction()) return;
+      notify("Admin-Befehl wird ausgefuehrt...", "ok");
+      await db.ref(`matches/${state.matchId}/chat`).remove();
+      setStatus("Chat geleert.", "ok");
+      notify("Chat geleert.", "ok");
+      log("ADMIN: Chat geleert.");
+    }
+
+    async function adminPawnWipe() {
+      await adminMutateMatch((match) => {
+        if (!match.state?.fen) return match;
+        const boardGame = new Chess();
+        if (!boardGame.load(match.state.fen)) return match;
+
+        const myColor = match.players?.[state.uid]?.color || state.color;
+        const oppColor = myColor === "w" ? "b" : "w";
+        const allSquares = boardGame.SQUARES || [
+          "a8","b8","c8","d8","e8","f8","g8","h8",
+          "a7","b7","c7","d7","e7","f7","g7","h7",
+          "a6","b6","c6","d6","e6","f6","g6","h6",
+          "a5","b5","c5","d5","e5","f5","g5","h5",
+          "a4","b4","c4","d4","e4","f4","g4","h4",
+          "a3","b3","c3","d3","e3","f3","g3","h3",
+          "a2","b2","c2","d2","e2","f2","g2","h2",
+          "a1","b1","c1","d1","e1","f1","g1","h1"
+        ];
+
+        allSquares.forEach((sq) => {
+          const piece = boardGame.get(sq);
+          if (!piece) return;
+          if (piece.color === oppColor && piece.type !== "k") {
+            boardGame.remove(sq);
+          }
+        });
+
+        match.state.fen = boardGame.fen();
+        match.state.turn = boardGame.turn();
+        match.state.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        match.state.lastMoveBy = state.uid;
+        match.state.lastMoveSan = "ADMIN PAWN WIPE";
+        match.state.lastMoveFrom = null;
+        match.state.lastMoveTo = null;
+        match.state.moveCount = (match.state.moveCount || 0) + 1;
+        match.status = "active";
+        match.result = null;
+        match.cleanupAt = null;
+        match.updatedAt = firebase.database.ServerValue.TIMESTAMP;
+        return match;
+      }, "Bauern-Befehl ausgefuehrt: Gegnerische Figuren entfernt.");
+      log("ADMIN: Bauern killen alles ausgefuehrt.");
+    }
+
     async function submitMove(from, to, promotion = "q") {
       const move = state.game.move({ from, to, promotion });
       if (!move) return false;
 
+      const movedPieceChar = move.color === "w" ? move.piece.toUpperCase() : move.piece;
       const newFen = state.game.fen();
       const nextTurn = state.game.turn();
       const moveSan = move.san;
       const resolution = evaluateResolution(state.game, state.uid, state.name);
+      state.localStyle.moves += 1;
+      if (move.captured) state.localStyle.captures += 1;
+      if (moveSan.includes("+")) state.localStyle.checks += 1;
+      state.currentGameMoves.push({
+        san: moveSan,
+        from,
+        to,
+        by: state.uid,
+        fen: newFen,
+        ts: Date.now()
+      });
 
       state.selected = null;
       state.legalMoves = [];
       state.pendingPromotion = null;
+      state.pendingPremove = null;
       renderBoard();
+      animateSlideMove(from, to, movedPieceChar);
 
       if (state.isAiGame) {
         state.localFen = newFen;
@@ -1343,9 +3104,13 @@
           if (resolution.result?.winnerUid) {
             setStatus("Spiel beendet: Du hast gewonnen.", "ok");
             showOverlay("win", "Sieg", "Du hast die KI geschlagen.");
+            processAiRating(1);
+            saveAiHistoryOnce("win");
           } else {
             setStatus("Spiel beendet: Remis.", "info");
             showOverlay("draw", "Remis", "Unentschieden gegen die KI.");
+            processAiRating(0.5);
+            saveAiHistoryOnce("draw");
           }
           return true;
         }
@@ -1364,7 +3129,24 @@
         match.state.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         match.state.lastMoveBy = state.uid;
         match.state.lastMoveSan = moveSan;
+        match.state.lastMoveFrom = from;
+        match.state.lastMoveTo = to;
         match.state.moveCount = (match.state.moveCount || 0) + 1;
+        match.moves = Array.isArray(match.moves) ? match.moves : [];
+        match.moves.push({
+          san: moveSan,
+          from,
+          to,
+          by: state.uid,
+          fen: newFen,
+          ts: Date.now()
+        });
+        match.stats = match.stats || {};
+        const myStats = match.stats[state.uid] || { moves: 0, captures: 0, checks: 0 };
+        myStats.moves += 1;
+        if (move.captured) myStats.captures += 1;
+        if (moveSan.includes("+")) myStats.checks += 1;
+        match.stats[state.uid] = myStats;
         match.updatedAt = firebase.database.ServerValue.TIMESTAMP;
 
         if (resolution.finished) {
@@ -1489,9 +3271,22 @@
           return;
         }
         const chosen = chooseBestAiMove(state.game, state.aiColor) || aiMoves[Math.floor(Math.random() * aiMoves.length)];
+        const movingPiece = state.game.get(chosen.from);
+        const movingPieceChar = pieceObjToChar(movingPiece);
         const move = state.game.move(chosen);
         state.localFen = state.game.fen();
+        if (move) {
+          state.currentGameMoves.push({
+            san: move.san,
+            from: chosen.from,
+            to: chosen.to,
+            by: "ai",
+            fen: state.localFen,
+            ts: Date.now()
+          });
+        }
         renderBoard();
+        animateSlideMove(chosen.from, chosen.to, movingPieceChar);
         if (move) log(`KI spielt: ${move.san}`);
 
         const resolution = evaluateResolution(state.game, "ai", "KI");
@@ -1499,15 +3294,34 @@
           if (resolution.result?.winnerUid) {
             setStatus("Spiel beendet: Die KI hat gewonnen.", "error");
             showOverlay("loss", "Niederlage", "Die KI hat gewonnen.");
+            processAiRating(0);
+            saveAiHistoryOnce("loss");
           } else {
             setStatus("Spiel beendet: Remis.", "info");
             showOverlay("draw", "Remis", "Unentschieden gegen die KI.");
+            processAiRating(0.5);
+            saveAiHistoryOnce("draw");
           }
         } else {
-          setStatus("Du bist am Zug.", "ok");
+          if (state.pendingPremove) {
+            tryExecuteQueuedPremove();
+          } else {
+            setStatus("Du bist am Zug.", "ok");
+          }
         }
         state.aiThinking = false;
       }, 550);
+    }
+
+    async function tryExecuteQueuedPremove() {
+      if (!state.pendingPremove || !state.game) return false;
+      if (state.game.turn() !== state.color) return false;
+      const queued = state.pendingPremove;
+      state.pendingPremove = null;
+      renderBoard();
+      const ok = await submitMove(queued.from, queued.to, queued.promotion || "q");
+      if (!ok) setStatus(t("premoveCanceled"), "info");
+      return ok;
     }
 
     async function onSquareClick(squareId) {
@@ -1515,22 +3329,72 @@
         setStatus("Matchmaking aktiv, aber Schach-Engine fehlt noch.", "error");
         return;
       }
+      if (state.banUntil && Date.now() < state.banUntil) {
+        const left = Math.ceil((state.banUntil - Date.now()) / 1000);
+        setStatus(`Du bist gebannt (${left}s).`, "error");
+        return;
+      }
       if (!state.matchId && !state.isAiGame) return;
-      if (state.game.turn() !== state.color) return;
+
+      const ownTurn = state.game.turn() === state.color;
+      const clickedPiece = state.game.get(squareId);
+      const clickedOwnPiece = !!(clickedPiece && clickedPiece.color === state.color);
+
+      if (!ownTurn) {
+        if (!state.selected) {
+          if (state.pendingPremove && (squareId === state.pendingPremove.from || squareId === state.pendingPremove.to)) {
+            clearPremove(true);
+            return;
+          }
+          if (!clickedOwnPiece) return;
+          state.selected = squareId;
+          state.legalMoves = getMovesForColor(squareId, state.color);
+          renderBoard();
+          return;
+        }
+
+        if (squareId === state.selected) {
+          clearSelection(true);
+          return;
+        }
+        if (clickedOwnPiece) {
+          state.selected = squareId;
+          state.legalMoves = getMovesForColor(squareId, state.color);
+          renderBoard();
+          return;
+        }
+        if (!state.legalMoves.includes(squareId)) {
+          clearSelection(true);
+          return;
+        }
+        const fromQueued = state.selected;
+        state.pendingPremove = { from: fromQueued, to: squareId, promotion: "q" };
+        clearSelection(false);
+        renderBoard();
+        setStatus(t("premoveQueued"), "info");
+        return;
+      }
 
       if (!state.selected) {
-        const piece = state.game.get(squareId);
-        if (!piece || piece.color !== state.color) return;
+        if (!clickedOwnPiece) return;
         state.selected = squareId;
-        state.legalMoves = state.game.moves({ square: squareId, verbose: true }).map((m) => m.to);
+        state.legalMoves = getMovesForColor(squareId, state.color);
         renderBoard();
         return;
       }
 
       if (squareId === state.selected) {
-        state.selected = null;
-        state.legalMoves = [];
+        clearSelection(true);
+        return;
+      }
+      if (clickedOwnPiece) {
+        state.selected = squareId;
+        state.legalMoves = getMovesForColor(squareId, state.color);
         renderBoard();
+        return;
+      }
+      if (!state.legalMoves.includes(squareId)) {
+        clearSelection(true);
         return;
       }
 
@@ -1546,11 +3410,30 @@
 
     function updateMatchUI(match) {
       if (!match) return;
+      const myBanData = match.bans?.[state.uid] || null;
+      const myBanUntil = myBanData?.until || 0;
+      state.banUntil = myBanUntil;
+      state.banReason = myBanData?.reason || "Einfach mein Freund..";
+      if (state.banUntil && Date.now() < state.banUntil) {
+        const banKey = `${state.matchId}:${state.banUntil}:${state.banReason}`;
+        if (state.lastBanPopupKey !== banKey) {
+          state.lastBanPopupKey = banKey;
+          showBanPopup(state.banReason);
+        }
+      } else {
+        state.lastBanPopupKey = null;
+        hideBanPopup();
+      }
 
       const turn = match.state?.turn;
-      if (turn === "w") ui.turnInfo.textContent = "Weiss";
-      else if (turn === "b") ui.turnInfo.textContent = "Schwarz";
+      if (turn === "w") ui.turnInfo.textContent = t("white");
+      else if (turn === "b") ui.turnInfo.textContent = t("black");
       else ui.turnInfo.textContent = "-";
+
+      const moveCount = match.state?.moveCount || 0;
+      const moveSan = match.state?.lastMoveSan;
+      const moveFrom = match.state?.lastMoveFrom || null;
+      const moveTo = match.state?.lastMoveTo || null;
 
       if (!state.chessReady || !state.game) {
         state.localFen = match.state?.fen || START_FEN;
@@ -1563,16 +3446,19 @@
       }
 
       const nextFen = match.state?.fen || state.game.fen();
+      let incomingMoveChar = null;
+      if (nextFen !== state.localFen && moveFrom && moveTo && moveCount !== state.lastLoggedMoveCount) {
+        incomingMoveChar = pieceObjToChar(state.game.get(moveFrom));
+      }
       if (nextFen !== state.localFen) {
         state.localFen = nextFen;
         state.selected = null;
         state.legalMoves = [];
         state.game.load(state.localFen);
         renderBoard();
+        if (incomingMoveChar) animateSlideMove(moveFrom, moveTo, incomingMoveChar);
       }
 
-      const moveCount = match.state?.moveCount || 0;
-      const moveSan = match.state?.lastMoveSan;
       if (moveSan && moveCount !== state.lastLoggedMoveCount) {
         state.lastLoggedMoveCount = moveCount;
         const byMe = match.state?.lastMoveBy === state.uid;
@@ -1582,7 +3468,16 @@
       updateGameStateLabel(match);
 
       if (match.status === "active") {
+        if (state.banUntil && Date.now() < state.banUntil) {
+          const left = Math.ceil((state.banUntil - Date.now()) / 1000);
+          setStatus(`Du bist gebannt (${left}s).`, "error");
+          return;
+        }
         if (state.game.turn() === state.color) {
+          if (state.pendingPremove) {
+            tryExecuteQueuedPremove();
+            return;
+          }
           setStatus("Du bist am Zug.", "ok");
         } else {
           setStatus("Gegner ist am Zug.", "info");
@@ -1590,6 +3485,7 @@
       }
 
       if (match.status === "finished") {
+        state.pendingPremove = null;
         if (match.result?.winnerUid) {
           if (match.result.winnerUid === state.uid) {
             setStatus("Spiel beendet: Du hast gewonnen.", "ok");
@@ -1600,11 +3496,16 @@
           setStatus("Spiel beendet: Remis.", "info");
         }
         showResultOverlay(match);
+        processMatchRating(match);
+        saveOnlineHistoryOnce(match);
       }
 
       if (match.status === "abandoned") {
+        state.pendingPremove = null;
         setStatus("Spiel beendet: Aufgabe.", "error");
         showResultOverlay(match);
+        processMatchRating(match);
+        saveOnlineHistoryOnce(match);
       }
     }
 
@@ -1623,7 +3524,7 @@
         if (!items.length) {
           const empty = document.createElement("div");
           empty.className = "muted";
-          empty.textContent = "Noch keine Nachrichten.";
+          empty.textContent = t("noMessages");
           ui.chatLog.appendChild(empty);
           return;
         }
@@ -1648,6 +3549,10 @@
       state.matchId = matchId;
       state.shownResultForMatch = null;
       state.shownIntroForMatch = null;
+      state.ratingHandledMatchId = null;
+      state.historySavedMatchId = null;
+      state.currentGameMoves = [];
+      resetLocalStyleStats();
       ui.matchId.textContent = matchId;
       ui.resignBtn.disabled = false;
       ui.resetBtn.disabled = false;
@@ -1679,14 +3584,15 @@
         if (!me) return;
 
         state.color = me.color;
-        ui.youColor.textContent = state.color === "w" ? "Weiss" : "Schwarz";
+        ui.youColor.textContent = state.color === "w" ? t("white") : t("black");
 
         const opponentUid = Object.keys(match.players).find((id) => id !== state.uid);
         state.opponentUid = opponentUid || null;
         state.opponent = opponentUid ? match.players[opponentUid] : null;
         ui.oppName.textContent = state.opponent?.name || "-";
+        ui.oppElo.textContent = formatAnyEloText(state.opponent?.rating);
         if (state.opponent?.name) {
-          showMatchIntro(state.name || ui.youName.textContent, state.opponent.name);
+          showMatchIntro(state.name || ui.youName.textContent, state.opponent.name, formatOwnEloText(), state.opponent?.rating);
         }
 
         updateMatchUI(match);
@@ -1713,7 +3619,8 @@
           db.ref(`queue/${state.uid}`).update({
             lastSeen: Date.now(),
             mode: state.mode,
-            roomCode: state.roomCode || null
+            roomCode: state.roomCode || null,
+            rating: state.elo || DEFAULT_ELO
           });
           const status = state.mode === "room-host"
             ? "hosting_room"
@@ -1723,7 +3630,8 @@
           db.ref(`users/${state.uid}`).update({
             lastSeen: Date.now(),
             status,
-            roomCode: state.roomCode || null
+            roomCode: state.roomCode || null,
+            rating: state.elo || DEFAULT_ELO
           });
         }
       }, 12000);
@@ -1803,9 +3711,10 @@
             cleanupAt: null,
             status: "active",
             roomCode,
+            stats: {},
             players: {
-              [hostUid]: { name: hostQueue.name, color: "w", joinedAt: Date.now() },
-              [guestUid]: { name: guestQueue.name, color: "b", joinedAt: Date.now() }
+              [hostUid]: { name: hostQueue.name, color: "w", joinedAt: Date.now(), rating: hostQueue.rating || DEFAULT_ELO },
+              [guestUid]: { name: guestQueue.name, color: "b", joinedAt: Date.now(), rating: guestQueue.rating || DEFAULT_ELO }
             },
             state: {
               fen: START_FEN,
@@ -1813,6 +3722,8 @@
               updatedAt: firebase.database.ServerValue.TIMESTAMP,
               lastMoveBy: null,
               lastMoveSan: null,
+              lastMoveFrom: null,
+              lastMoveTo: null,
               moveCount: 0
             }
           });
@@ -1846,6 +3757,8 @@
           const p2 = livePlayers[1][0];
           const p1Name = livePlayers[0][1].name;
           const p2Name = livePlayers[1][1].name;
+          const p1Rating = livePlayers[0][1].rating || DEFAULT_ELO;
+          const p2Rating = livePlayers[1][1].rating || DEFAULT_ELO;
 
           const existingP1 = await db.ref(`users/${p1}/matchId`).get();
           const existingP2 = await db.ref(`users/${p2}/matchId`).get();
@@ -1860,9 +3773,10 @@
             updatedAt: firebase.database.ServerValue.TIMESTAMP,
             cleanupAt: null,
             status: "active",
+            stats: {},
             players: {
-              [p1]: { name: p1Name, color: "w", joinedAt: Date.now() },
-              [p2]: { name: p2Name, color: "b", joinedAt: Date.now() }
+              [p1]: { name: p1Name, color: "w", joinedAt: Date.now(), rating: p1Rating },
+              [p2]: { name: p2Name, color: "b", joinedAt: Date.now(), rating: p2Rating }
             },
             state: {
               fen: initialFen,
@@ -1870,6 +3784,8 @@
               updatedAt: firebase.database.ServerValue.TIMESTAMP,
               lastMoveBy: null,
               lastMoveSan: null,
+              lastMoveFrom: null,
+              lastMoveTo: null,
               moveCount: 0
             }
           });
@@ -1911,8 +3827,8 @@
       const queueRef = db.ref(`queue/${state.uid}`);
       const presenceRef = db.ref(`presence/${state.uid}`);
 
-      await userRef.set({ name, status: "searching", joinedAt: Date.now(), lastSeen: Date.now(), roomCode: null });
-      await queueRef.set({ name, joinedAt: Date.now(), lastSeen: Date.now(), mode: "quick", roomCode: null });
+      await userRef.set({ name, status: "searching", joinedAt: Date.now(), lastSeen: Date.now(), roomCode: null, rating: state.elo || DEFAULT_ELO });
+      await queueRef.set({ name, joinedAt: Date.now(), lastSeen: Date.now(), mode: "quick", roomCode: null, rating: state.elo || DEFAULT_ELO });
       await presenceRef.set({ online: true, lastSeen: Date.now() });
 
       userRef.onDisconnect().update({ status: "offline", lastSeen: firebase.database.ServerValue.TIMESTAMP });
@@ -1978,14 +3894,16 @@
         status: "hosting_room",
         roomCode,
         joinedAt: Date.now(),
-        lastSeen: Date.now()
+        lastSeen: Date.now(),
+        rating: state.elo || DEFAULT_ELO
       });
       await queueRef.set({
         name,
         joinedAt: Date.now(),
         lastSeen: Date.now(),
         mode: "room-host",
-        roomCode
+        roomCode,
+        rating: state.elo || DEFAULT_ELO
       });
       await presenceRef.set({ online: true, lastSeen: Date.now() });
 
@@ -2058,14 +3976,16 @@
         status: "joining_room",
         roomCode,
         joinedAt: Date.now(),
-        lastSeen: Date.now()
+        lastSeen: Date.now(),
+        rating: state.elo || DEFAULT_ELO
       });
       await queueRef.set({
         name,
         joinedAt: Date.now(),
         lastSeen: Date.now(),
         mode: "room-join",
-        roomCode
+        roomCode,
+        rating: state.elo || DEFAULT_ELO
       });
       await presenceRef.set({ online: true, lastSeen: Date.now() });
 
@@ -2117,11 +4037,16 @@
       state.color = "w";
       state.name = name;
       state.opponent = { name: "KI" };
+      state.ratingHandledMatchId = null;
+      state.aiSessionId = `ai_${Date.now()}`;
+      state.aiSessionSaved = false;
+      state.currentGameMoves = [];
       ui.youName.textContent = name;
-      ui.youColor.textContent = "Weiss";
+      ui.youColor.textContent = t("white");
       ui.oppName.textContent = "KI";
+      ui.oppElo.textContent = "1450";
       ui.matchId.textContent = "KI";
-      ui.turnInfo.textContent = "Weiss";
+      ui.turnInfo.textContent = t("white");
       ui.gameState.textContent = "Laufend";
       ui.resignBtn.disabled = false;
       ui.resetBtn.disabled = false;
@@ -2145,7 +4070,13 @@
       }
       if (state.uid) {
         await db.ref(`queue/${state.uid}`).remove();
-        await db.ref(`users/${state.uid}`).remove();
+        await db.ref(`users/${state.uid}`).update({
+          status: "offline",
+          matchId: null,
+          roomCode: null,
+          lastSeen: Date.now(),
+          rating: state.elo || DEFAULT_ELO
+        });
         await db.ref(`presence/${state.uid}`).update({ online: false, lastSeen: Date.now() });
       }
 
@@ -2155,9 +4086,14 @@
       state.opponentUid = null;
       state.selected = null;
       state.legalMoves = [];
+      state.pendingPremove = null;
       state.shownResultForMatch = null;
       state.shownIntroForMatch = null;
       state.pendingPromotion = null;
+      state.banUntil = 0;
+      state.banReason = "";
+      state.lastBanPopupKey = null;
+      state.ratingHandledMatchId = null;
       state.name = null;
       state.mode = "idle";
       state.roomCode = null;
@@ -2172,16 +4108,20 @@
       ui.youName.textContent = "-";
       ui.youColor.textContent = "-";
       ui.oppName.textContent = "-";
+      ui.oppElo.textContent = "-";
+      ui.introOppElo.textContent = `${t("elo")} -`;
       ui.turnInfo.textContent = "-";
       ui.matchId.textContent = "-";
-      ui.gameState.textContent = "Bereit";
+      ui.gameState.textContent = t("ready");
+      updateEloUI();
       ui.resignBtn.disabled = true;
       ui.resetBtn.disabled = true;
       ui.sendChatBtn.disabled = true;
       hideOverlay();
       ui.introOverlay.classList.remove("show");
+      hideBanPopup();
       hidePromotionOverlay();
-      setStatus("Bereit.", "info");
+      setStatus(`${t("ready")}.`, "info");
       setButtonsForReady();
       resetLocalGame();
     }
@@ -2190,6 +4130,8 @@
       if (state.isAiGame) {
         showOverlay("loss", "Aufgegeben", "Du hast gegen die KI aufgegeben.");
         setStatus("Du hast aufgegeben.", "error");
+        processAiRating(0);
+        saveAiHistoryOnce("loss");
         return;
       }
       if (!state.matchId) return;
@@ -2233,8 +4175,11 @@
           updatedAt: firebase.database.ServerValue.TIMESTAMP,
           lastMoveBy: null,
           lastMoveSan: null,
+          lastMoveFrom: null,
+          lastMoveTo: null,
           moveCount: 0
         };
+        match.stats = {};
         match.updatedAt = firebase.database.ServerValue.TIMESTAMP;
         match.status = "active";
         match.result = null;
@@ -2249,6 +4194,11 @@
 
     async function sendChat() {
       if (!state.matchId || !state.uid) return;
+      if (state.banUntil && Date.now() < state.banUntil) {
+        const left = Math.ceil((state.banUntil - Date.now()) / 1000);
+        setStatus(`Chat gesperrt (${left}s).`, "error");
+        return;
+      }
       const text = ui.chatInput.value.trim();
       if (!text) return;
 
@@ -2288,12 +4238,14 @@
             name: state.name,
             status,
             roomCode: state.roomCode || null,
+            rating: state.elo || DEFAULT_ELO,
             lastSeen: Date.now()
           });
           await db.ref(`queue/${state.uid}`).update({
             name: state.name,
             mode: state.mode === "idle" ? "quick" : state.mode,
             roomCode: state.roomCode || null,
+            rating: state.elo || DEFAULT_ELO,
             lastSeen: Date.now()
           });
           setStatus("Wieder verbunden.", "ok");
@@ -2305,9 +4257,23 @@
           state.uid = user.uid;
           state.authReady = true;
           state.authMode = "firebase";
+          state.isGuestUser = !!user.isAnonymous;
+          state.hasGuestElo = false;
           state.isAdmin = !!(user.email && user.email.toLowerCase() === OWNER_EMAIL.toLowerCase());
+
+          if (state.isGuestUser) {
+            loadGuestElo();
+          } else {
+            const ratingSnap = await db.ref(`users/${state.uid}/rating`).get();
+            const existingRating = ratingSnap.exists() ? Number(ratingSnap.val()) : NaN;
+            state.elo = Number.isFinite(existingRating) ? clampElo(existingRating) : DEFAULT_ELO;
+            await db.ref(`users/${state.uid}/rating`).set(state.elo);
+            updateEloUI();
+          }
+
           updateAuthChip(user);
           updateAdminUI();
+          startHistoryWatcher();
           setButtonsForReady();
           if (state.chessReady) {
             setStatus("Verbunden. Name eingeben und Matchmaking starten.", "ok");
@@ -2318,8 +4284,11 @@
         }
 
         state.isAdmin = false;
+        state.isGuestUser = true;
+        state.hasGuestElo = false;
         updateAuthChip(null);
         updateAdminUI();
+        startHistoryWatcher();
         try {
           await auth.signInAnonymously();
         } catch (error) {
@@ -2341,6 +4310,36 @@
     ui.joinBtn.addEventListener("click", joinQueue);
     ui.googleLoginBtn.addEventListener("click", loginWithGoogle);
     ui.logoutBtn.addEventListener("click", logoutToGuest);
+    ui.settingsBtn.addEventListener("click", openSettings);
+    ui.settingsCloseBtn.addEventListener("click", closeSettings);
+    ui.settingsOverlay.addEventListener("click", (e) => {
+      if (e.target === ui.settingsOverlay) closeSettings();
+    });
+    ui.replayOverlay.addEventListener("click", (e) => {
+      if (e.target === ui.replayOverlay) closeReplay();
+    });
+    function applySettingsFromInputs() {
+      applyVisualSettings({
+        language: ui.languageSelect.value,
+        design: ui.designSelect.value,
+        layout: ui.layoutSelect.value,
+        accent: ui.accentSelect.value,
+        boardSize: ui.boardSizeSelect.value,
+        coords: ui.coordsSelect.value,
+        motion: ui.motionSelect.value,
+        boardTheme: ui.boardThemeSelect.value,
+        uiScale: ui.uiScaleSelect.value
+      }, true);
+    }
+    ui.languageSelect.addEventListener("change", applySettingsFromInputs);
+    ui.designSelect.addEventListener("change", applySettingsFromInputs);
+    ui.layoutSelect.addEventListener("change", applySettingsFromInputs);
+    ui.accentSelect.addEventListener("change", applySettingsFromInputs);
+    ui.boardSizeSelect.addEventListener("change", applySettingsFromInputs);
+    ui.coordsSelect.addEventListener("change", applySettingsFromInputs);
+    ui.motionSelect.addEventListener("change", applySettingsFromInputs);
+    ui.boardThemeSelect.addEventListener("change", applySettingsFromInputs);
+    ui.uiScaleSelect.addEventListener("change", applySettingsFromInputs);
     ui.createRoomBtn.addEventListener("click", createRoom);
     ui.joinRoomBtn.addEventListener("click", joinRoom);
     ui.aiBtn.addEventListener("click", startAiGame);
@@ -2348,6 +4347,8 @@
       btn.addEventListener("click", () => setSelectedMode(btn.dataset.mode));
     });
     ui.leaveBtn.addEventListener("click", () => leaveEverything({ clearInput: true }));
+    ui.board.addEventListener("click", onBoardClick);
+    ui.board.addEventListener("contextmenu", onBoardContextMenu);
     ui.resignBtn.addEventListener("click", resign);
     ui.resetBtn.addEventListener("click", resetGame);
     ui.sendChatBtn.addEventListener("click", sendChat);
@@ -2363,8 +4364,34 @@
     ui.devTo.addEventListener("input", () => {
       ui.devTo.value = ui.devTo.value.toLowerCase().replace(/[^a-h1-8]/g, "").slice(0, 2);
     });
+    ui.adminBanSeconds.addEventListener("input", () => {
+      ui.adminBanSeconds.value = ui.adminBanSeconds.value.replace(/\D/g, "").slice(0, 5);
+    });
+    ui.adminBanReason.addEventListener("input", () => {
+      ui.adminBanReason.value = ui.adminBanReason.value.slice(0, 120);
+    });
     ui.devMoveBtn.addEventListener("click", applyDevTeleport);
     ui.devFenBtn.addEventListener("click", applyDevFen);
+    ui.adminBanBtn.addEventListener("click", adminBanOpponent);
+    ui.adminUnbanBtn.addEventListener("click", adminUnbanOpponent);
+    ui.adminWinBtn.addEventListener("click", () => adminForceResult("win"));
+    ui.adminLossBtn.addEventListener("click", () => adminForceResult("loss"));
+    ui.adminDrawBtn.addEventListener("click", () => adminForceResult("draw"));
+    ui.adminFlipTurnBtn.addEventListener("click", adminFlipTurn);
+    ui.adminClearChatBtn.addEventListener("click", adminClearChat);
+    ui.adminPawnWipeBtn.addEventListener("click", adminPawnWipe);
+    ui.replayPrevBtn.addEventListener("click", () => {
+      if (!state.replayGame) return;
+      state.replayIndex = Math.max(0, state.replayIndex - 1);
+      renderReplayBoard();
+    });
+    ui.replayNextBtn.addEventListener("click", () => {
+      if (!state.replayGame) return;
+      state.replayIndex = Math.min(Math.max(0, state.replayFens.length - 1), state.replayIndex + 1);
+      renderReplayBoard();
+    });
+    ui.replayCloseBtn.addEventListener("click", closeReplay);
+    ui.banCloseBtn.addEventListener("click", hideBanPopup);
     ui.overlayCloseBtn.addEventListener("click", hideOverlay);
     ui.promoButtons.forEach((btn) => {
       btn.addEventListener("click", async () => {
@@ -2380,14 +4407,41 @@
       if (!state.uid) return;
       db.ref(`presence/${state.uid}`).set({ online: false, lastSeen: Date.now() });
     });
+    document.addEventListener("click", onGlobalDocumentClick);
+    window.addEventListener("keydown", (e) => {
+      if (state.replayGame && ui.replayOverlay.classList.contains("show")) {
+        if (e.key === "ArrowLeft") {
+          state.replayIndex = Math.max(0, state.replayIndex - 1);
+          renderReplayBoard();
+        } else if (e.key === "ArrowRight") {
+          state.replayIndex = Math.min(Math.max(0, state.replayFens.length - 1), state.replayIndex + 1);
+          renderReplayBoard();
+        } else if (e.key === "Escape") {
+          closeReplay();
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        if (state.selected) {
+          clearSelection(true);
+          return;
+        }
+        if (state.pendingPremove) {
+          clearPremove(true);
+        }
+      }
+    });
 
     async function bootstrap() {
       try {
+        renderPlaceholderBoard();
         if (window.location.protocol === "file:") {
           setStatus("Bitte ueber http://localhost starten, nicht ueber file://", "error");
           return;
         }
 
+        loadVisualSettings();
+        loadGuestElo();
         initAuth();
         setStatus("Verbinde Firebase... Lade Schach-Engine...", "info");
         const chessReady = await ensureChessLoaded();
